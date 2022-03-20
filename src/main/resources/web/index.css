@@ -208,12 +208,18 @@ header>h5 {
     transition-duration: .1s, .3s, .3s;
     border-color: var(--input-border-color-disabled);
     cursor: default;
+    caret-color: transparent;
 }
 
-.prime-input-box input:valid.disabled+span {
+.prime-input-box input:disabled:required:valid+span {
     color:rgb(148, 148, 148);
     transform: translate(-5px, -120%) scale(.85);
     transition-duration: .4s;
+}
+
+.prime-button.hide-text>button {
+    color:transparent;
+    transition: 0.1s;
 }
 
 .prime-button {
@@ -227,8 +233,8 @@ header>h5 {
 
 .prime-button>button:focus {
     outline: var(--input-outline-color) solid 3px !important;
-    transition-property: outline, background;
-    transition-duration: 0.1s, 0.3s;
+    transition-property: outline, background, color;
+    transition-duration: 0.1s, 0.3s, 0.1s;
 }
 
 .prime-button>button {
@@ -241,8 +247,8 @@ header>h5 {
     cursor: pointer;
     color: white;
     background-color: var(--input-hover-color);
-    transition-property: outline, background;
-    transition-duration: 0.1s, 0.3s;
+    transition-property: outline, background, color;
+    transition-duration: 0.1s, 0.3s, 0.1s;
     outline: var(--input-outline-color) solid 0px !important;
 }
 

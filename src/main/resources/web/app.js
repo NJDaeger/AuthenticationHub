@@ -3,23 +3,11 @@ const uuidInput = document.getElementById("uuid");
 const authInput = document.getElementById("auth-code");
 const authorizeBtn = document.getElementById("authorize");
 
-function startRipple(event) {
-    const elem = event.currentTarget;
-    if (elem.querySelector(".disabled")) return;
-    const circle = document.createElement("span");
-    const diameter = Math.max(elem.clientWidth, elem.clientHeight);
-    const radius = diameter/2;
-
-    console.log(diameter);
-
-    circle.style.width = circle.style.height = `${diameter}px`;
-    circle.style.left = `${event.clientX - (elem.offsetLeft + radius)}px`;
-    circle.style.top = `${event.clientY - (elem.offsetTop + radius)}px`;
-    circle.classList.add("ripple-effect");
-    const ripple = elem.getElementsByClassName("ripple-effect")[0];
-    if (ripple) ripple.remove();
-    elem.appendChild(circle);
-}
+//
+//First, I gotta do some basic website setup.
+//* Ripple effect initialization
+//* Toast initialization
+//* Disable input initialization
 
 //Adding all event listeners for the ripple effect to work
 const ripples = document.getElementsByClassName("ripple");
@@ -33,36 +21,79 @@ var toastList = toastElList.map(function (toastEl) {
     return new bootstrap.Toast(toastEl, {animation:true, autohide: true, delay: 5000});
 })
 
+//Adding event listeners to uuid and auth code input so nothing can be typed when disabled.
+uuidInput.addEventListener("keydown", noType);
+authInput.addEventListener("keydown", noType);
+
+//Disable typing in an input box
+function noType(event) {
+    if (!event.currentTarget.classList.contains("disabled")) return;
+    event.stopPropagation();
+    event.preventDefault();
+    event.cancelBubble = true;
+}
+
+//Show a ripple effect
+function startRipple(event) {
+    const elem = event.currentTarget;
+    if (elem.querySelector(".disabled")) return;
+    const circle = document.createElement("span");
+    const diameter = Math.max(elem.clientWidth, elem.clientHeight);
+    const radius = diameter/2;
+
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${event.clientX - (elem.offsetLeft + radius)}px`;
+    circle.style.top = `${event.clientY - (elem.offsetTop + radius)}px`;
+    circle.classList.add("ripple-effect");
+    const ripple = elem.getElementsByClassName("ripple-effect")[0];
+    if (ripple) ripple.remove();
+    elem.appendChild(circle);
+}
+
 function showToast(toastId) {
     toastList.find(toast => toast._element.id === toastId)?.show();
 }
 
+//
+//This may seem kind of weird, however, when setting the element to disabled, we are unable to determine if
+//said element is valid anymore. To get around that, we just disable it with a class and manually stop typing
+//in the input box.
+//
 function setDisabled(elem, disabled) {
-    if (disabled) {
-        elem.disabled = true;
-        elem.classList.add("disabled");
-    } else {
-        elem.disabled = false;
-        elem.classList.remove("disabled");
-    }
+    if (disabled) elem.classList.add("disabled");
+    else elem.classList.remove("disabled");
 }
 
+//
+//Sets the button text
+//
 function setAuthButtonText(text) {
-    authorizeBtn.innerText = text;
+    const authParent = authorizeBtn.parentElement;
+    authParent.classList.add("hide-text");
+    setTimeout(() => {
+        authorizeBtn.innerText = text;
+        authParent.classList.remove("hide-text");
+    }, 100);
 }
 
+//
+//Whether to show the loading bar on the page or not
+//
 function setLoading(loading) {
-    console.log("SET" + loading);
     if (loading) document.getElementsByClassName("loadbar")[0].classList.add("loading");
     else document.getElementsByClassName("loadbar")[0].classList.remove("loading");
 }
 
+//
+//Authorize/validate the user when input is given.
+//
 async function authorize() {
     var id = document.getElementById('uuid').value;
     if (!regexExp.test(id)) {
         showToast("toast-id-bad");
         setAuthButtonText("Validate UUID");
         setDisabled(authInput, true);
+        authInput.value = null;
         setDisabled(uuidInput, false);
         setLoading(false);
         return;
@@ -73,6 +104,7 @@ async function authorize() {
                 showToast("toast-id-missing");
                 setAuthButtonText("Validate UUID");
                 setDisabled(authInput, true);
+                authInput.value = null;
                 setDisabled(uuidInput, false);
                 setLoading(false);
             } else {
@@ -81,53 +113,15 @@ async function authorize() {
                 setDisabled(uuidInput, true);
                 setDisabled(authInput, false);
                 setLoading(false);
-
-                // docu
-                // document.getElementById('hello-message').innerHTML = "Hi " + res.name;
-                // hide('uuid-not-found');
-                // hide('uuid-invalid');
-                // show('uuid-found');
             }
         }).catch(e => {
             showToast("toast-api-error");
             setAuthButtonText("Validate UUID");
-            setDisabled(uuidInput, true);
-                setDisabled(authInput, false);
-                setLoading(false);
-            // setDisabled(authInput, true);
-            // setDisabled(uuidInput, false);
-            // setLoading(false);
+            setDisabled(authInput, true);
+            authInput.value = null;
+            setDisabled(uuidInput, false);
+            setLoading(false);
         });
     }
     setLoading(true);
 }
-
-// async function validateAccount() {
-//     var id = document.getElementById('uuid').value;
-//     if (!regexExp.test(id)) {
-//         hide('uuid-not-found');
-//         hide('uuid-found');
-//         show('uuid-invalid');
-//     } else {
-//         hide('uuid-invalid');
-//         await fetch("http://localhost:4567/validate?uuid=" + id).then(res => res.json()).then(res => {
-//             if (res.error) {
-//                 hide('uuid-found');
-//                 hide('uuid-invalid');
-//                 show('uuid-not-found');
-//             } else {
-//                 document.getElementById('hello-message').innerHTML = "Hi " + res.name;
-//                 hide('uuid-not-found');
-//                 hide('uuid-invalid');
-//                 show('uuid-found');
-//             }
-//         }).catch(e => {
-//             console.log(e);
-//             // hide('loader');
-//             hide('uuid-found');
-//             hide('uuid-invalid');
-//             show('uuid-not-found');
-//         });
-//         // show('loader');
-//     }
-// }
