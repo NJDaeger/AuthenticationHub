@@ -1,0 +1,6 @@
+name: AuthenticationHub
+version: '${project.version}'
+main: com.njdaeger.authenticationhub.AuthenticationHub
+api-version: 1.17
+authors: [ NJDaeger ]
+description: Authenticate services with a Minecraft account

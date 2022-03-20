@@ -1,0 +1,290 @@
+:root {
+    --input-hover-color: #0084ff;
+    --input-outline-color: #0084ffaa;
+    --input-outline-color-off: #0084ff00;
+    --input-border-color: #333333;
+    --input-border-color-disabled: #b4b4b4;
+
+    --input-background: #ffffff;
+    --input-background-disabled: #dfdfdf;
+
+    --regular-font-size: 2rem;
+    --card-header-font-size: 4rem;
+    --header-height: 30vh;
+
+    --light-blue-base: #f9fafb;
+    --light-base: #f9fafb;
+    --dark-base: #515159;
+}
+
+/* Extra small devices (phones, 576px and down) */
+@media only screen and (max-width: 576px) {
+    :root {
+        --regular-font-size: 4rem;
+        --card-header-font-size: 4rem;
+    }
+}
+
+/* Small devices (portrait tablets and large phones, 576px and up) */
+@media only screen and (min-width: 576px) {
+    :root {
+        --regular-font-size: 3rem;
+        --card-header-font-size: 4rem;
+    }
+}
+
+/* Medium devices (landscape tablets, 768px and up) */
+@media only screen and (min-width: 768px) {
+    :root {
+        --regular-font-size: 3rem;
+        --card-header-font-size: 3.5rem;
+    }
+}
+
+/* Large devices (laptops/desktops, 992px and up) */
+@media only screen and (min-width: 992px) {
+    :root {
+        --regular-font-size: 1.5rem;
+        --card-header-font-size: 2rem;
+    }
+}
+
+/* Extra large devices (large laptops and desktops, 1200px and up) */
+@media only screen and (min-width: 1200px) {
+    :root {
+        --regular-font-size: 1.25rem;
+        --card-header-font-size: 2rem;
+    }
+}
+
+/* Extra extra large devices (large laptops and desktops, 1400px and up) */
+@media only screen and (min-width: 1400px) {
+    :root {
+        /* --regular-font-size: 1rem; */
+        --card-header-font-size: 2rem;
+    }
+}
+
+.animateFirst {
+    opacity: 0;
+    animation: fadeIn .5s cubic-bezier(.12,.7,.52,1.09) .2s forwards;
+}
+
+.animateSecond {
+    opacity: 0;
+    animation: fadeIn .5s cubic-bezier(.12,.7,.52,1.09) .4s forwards;
+}
+
+.loadbar {
+    opacity: 0;
+    transition-duration: .3s;
+    position: fixed;
+    height: 0px;
+    width: 100%;
+    background-color: #64b4ff;
+}
+
+.loadbar.loading {
+    opacity: 1;
+    transition-duration: .3s;
+    height: .25rem;
+}
+
+.loadbar.loading>div {
+    background-color: #21262a;
+    height: 100%;
+    width: 50%;
+    display: block;
+    animation: loading 2.5s infinite;
+    animation-timing-function: ease-in-out;
+    position: relative;
+}
+
+#root {
+    height: 100%;
+    width: 100%;
+    display: inline-flex;
+    flex-direction: column;
+}
+
+#background {
+    width: 100%;
+    height: 100%;
+    z-index: -100;
+    object-fit: cover;
+    margin: 0;
+    position: fixed;
+}
+
+header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--input-hover-color);
+    height: var(--header-height);
+    min-height: 150pt;
+    max-height: 30vh;
+    width: 100%;
+    transition-duration: .2s;
+}
+
+header>h1 {
+    font-size: 72pt;
+    margin: 0;
+    text-align: center;
+}
+
+header>h5 {
+    font-size: 24pt;
+    text-align: center;
+}
+
+#instruction-message {
+    font-size: var(--card-header-font-size);
+    text-align: center;
+}
+
+.disabled {
+    transition-duration: 0.3s;
+}
+
+.prime-input-box {
+    position: relative;
+    font-size: var(--regular-font-size);
+    display: flex;
+    place-items: center;
+    padding: 3px;
+    padding-top: calc(1.25 * var(--regular-font-size)) !important;
+}
+
+.prime-input-box span {
+    display: block;
+    position: absolute;
+    transform: translate(10px, 0px) scale(1);
+    color: rgb(97, 97, 97);
+    transition-duration: .4s;
+    user-select: none;
+    pointer-events: none;
+}
+
+.prime-input-box>input:not(.disabled):hover+span,.prime-input-box>input:not(.disabled):focus+span,.prime-input-box>input:required:valid+span {
+    transform: translate(-5px, -120%) scale(.85);
+    transition-duration: .4s;
+}
+
+.prime-input-box>input:not(.disabled):hover{
+    border-color: var(--input-hover-color);
+    outline: var(--input-outline-color-off) solid 0px;
+    transition-property: outline, border, background;
+    transition-duration: .1s, .3s, .3s;
+}
+
+.prime-input-box>input:not(.disabled):focus {
+    outline: var(--input-outline-color) solid 3px;
+    transition-property: outline, border, background;
+    transition-duration: .1s, .3s, .3s;
+}
+
+.prime-input-box input {
+    box-sizing: border-box;
+    padding: .25rem;
+    border-radius: .25rem;
+    border-style: solid;
+    border-width: 0.0625rem;
+    font-size: smaller;
+    transition-property: outline, border, background;
+    transition-duration: .1s, .3s, .3s;
+    background-color: var(--input-background);
+    outline: var(--input-outline-color) solid 0px;
+    border-color: var(--input-border-color);
+    display: block;
+    width: 100%;
+}
+
+.prime-input-box input.disabled {
+    background-color: var(--input-background-disabled);
+    transition-property: outline, border, background;
+    transition-duration: .1s, .3s, .3s;
+    border-color: var(--input-border-color-disabled);
+    cursor: default;
+}
+
+.prime-input-box input:valid.disabled+span {
+    color:rgb(148, 148, 148);
+    transform: translate(-5px, -120%) scale(.85);
+    transition-duration: .4s;
+}
+
+.prime-button {
+    padding: 6px;
+}
+
+.prime-button>button:hover {
+    background: #47a7f5;
+    transition-duration: 0.3s;
+}
+
+.prime-button>button:focus {
+    outline: var(--input-outline-color) solid 3px !important;
+    transition-property: outline, background;
+    transition-duration: 0.1s, 0.3s;
+}
+
+.prime-button>button {
+    border: none;
+    border-radius: .25rem;
+    width: 100%;
+    height: 100%;
+    padding: 0.25rem 0;
+    font-size: var(--regular-font-size);
+    cursor: pointer;
+    color: white;
+    background-color: var(--input-hover-color);
+    transition-property: outline, background;
+    transition-duration: 0.1s, 0.3s;
+    outline: var(--input-outline-color) solid 0px !important;
+}
+
+/* Ripple effect */
+.ripple {
+    overflow: hidden;
+    position: relative;
+}
+
+.ripple>.ripple-effect {
+    position: absolute;
+    opacity: 1;
+    pointer-events: none;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple 1000ms linear;
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+@keyframes loading {
+    from {
+        left: -100%;
+    }
+    to {
+        left: 100%;
+    }
+}
+
+@keyframes ripple {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+@keyframes fadeIn {
+    0% {
+        transform: translateY(-30px);
+        opacity: 0;
+    } 
+    100% {
+        transform: translateY(0px);
+        opacity: 1;
+    }
+}
