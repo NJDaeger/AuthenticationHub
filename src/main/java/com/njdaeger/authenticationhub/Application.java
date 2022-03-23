@@ -2,6 +2,7 @@ package com.njdaeger.authenticationhub;
 
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import spark.Route;
 
 import java.io.File;
 import java.io.IOException;
@@ -50,7 +51,7 @@ public abstract class Application {
      * Function to call when the client connects to the {@link Application#getUniqueName()} route.
      * This should connect whatever application/service is to be authorized.
      */
-    public abstract void connect();
+    public abstract void connect(Route route);
 
     /**
      * Get the associated configuration file with this application. If a configuration file does not exist yet,

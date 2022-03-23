@@ -28,7 +28,7 @@ public class WebApplication {
     private final File index;
     private final Plugin plugin;
     private final Service webService;
-    private final Map<UUID, String> verificationMap;
+    private final Map<UUID, AuthSession> verificationMap;
 
     public WebApplication(Plugin plugin, File index) {
         this.verificationMap = new HashMap<>();
@@ -149,6 +149,21 @@ public class WebApplication {
         });
     }
 
+    /*
+    TODO: This list
+     - Idea:
+        - Create an "instruction" node in the nonce so there can be instructions given to the user from the backend.
+        - If the user is online when they put their UUID in, tell them to run /auth in game to get a code
+        - If the user is offline, tell them to join and run /auth or join and use the auth code in the disconnect message
+        - Routing per UUID
+            - eg http://auth.greenfieldmc.net/uuid/
+                - if someone attempts to go to a UUID, they will be given a 401 error
+     - When a user starts their session, send them a browser cookie, this way no external person can effectively DDOS an individual from authorizing
+        - When this user opens the page, they get a cookie with a unique hash in it
+        - Every time the user does an action, this cookie is sent back with it for matching
+        - If it matches, good
+        - If it does not match AND said user session is older than 10 minutes/not closed
+     */
 
     /**
      * /validate
@@ -182,8 +197,8 @@ public class WebApplication {
 
                 res.header("content-type", "application/json");
                 res.status(200);
-                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, RandomStringUtils.random(10, true, true));
-                System.out.println("mapping: " + verificationMap.get(uuid));
+                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid, RandomStringUtils.random(10, true, true)));
+                System.out.println("mapping: " + verificationMap.get(uuid).getAuthToken());
                 return createObject("message", "Success! Please provide your authorization code next.", "status", 200);
             } catch (Exception e) {
                 if (uuid != null) verificationMap.remove(uuid);

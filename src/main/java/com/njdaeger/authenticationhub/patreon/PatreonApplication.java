@@ -4,6 +4,7 @@ import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.AuthenticationHub;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.Configuration;
+import spark.Route;
 
 public class PatreonApplication extends Application {
 
@@ -34,7 +35,9 @@ public class PatreonApplication extends Application {
     }
 
     @Override
-    public void connect() {
+    public Route connect() {
+        return (req, res) -> {
 
+        };
     }
 }

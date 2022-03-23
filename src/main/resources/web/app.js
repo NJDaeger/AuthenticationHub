@@ -116,78 +116,85 @@ function setLoading(loading) {
 }
 
 //
-//Authorize/validate the user when input is given.
+//When the button is pressed, we need to do some checks for the frontend before we call the backend
 //
-async function authorize() {
-    toast("This is a test toast!", "bg-success");
+function buttonPress() {
     var id = document.getElementById('uuid').value;
     if (!regexExp.test(id)) {
-        showToast("toast-id-bad");
+        toast("UUID Error: Your UUID provided is not properly formatted.", "bg-danger");
         setAuthButtonText("Validate UUID");
         setDisabled(authInput, true);
         authInput.value = null;
         setDisabled(uuidInput, false);
         setLoading(false);
         return;
-    }
-    else {
-        if (authInput.classList.contains("disabled")) {
-            fetch("/validate", {
-                method: "POST",
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({uuid: uuidInput.value})
-            }).then(res => res.json()).then(res => {
-                const success = res.status === 200;
-                if (success) {
-                    setAuthButtonText("Authorize");
-                    setDisabled(uuidInput, true);
-                    setDisabled(authInput, false);
-                    setLoading(false);
-                } else {
-                    setAuthButtonText("Validate UUID");
-                    setDisabled(authInput, true);
-                    authInput.value = null;
-                    setDisabled(uuidInput, false);
-                    setLoading(false);
-                }
-                toast(res.message, success ? "bg-success" : "bg-danger");
-            }).catch(e => {
-                setAuthButtonText("Validate UUID");
-                setDisabled(authInput, true);
-                authInput.value = null;
-                setDisabled(uuidInput, false);
-                setLoading(false);
-                toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
-            });
-        } else {
-            fetch("/authorize", {
-                method: "POST",
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({authcode: authInput.value, uuid: uuidInput.value})
-            }).then(res => res.json()).then(res => {
-                const success = res.status === 200;
-                if (success) {
-                    setAuthButtonText("Authorized!");
-                    setDisabled(uuidInput, true);
-                    setDisabled(authInput, true);
-                    setLoading(false);
-                } else {
-                    setAuthButtonText("Validate UUID");
-                    setDisabled(authInput, true);
-                    authInput.value = null;
-                    setDisabled(uuidInput, false);
-                    setLoading(false);
-                }
-                toast(res.message, success ? "bg-success" : "bg-danger");
-            }).catch(e => {
-                setAuthButtonText("Validate UUID");
-                setDisabled(authInput, true);
-                authInput.value = null;
-                setDisabled(uuidInput, false);
-                setLoading(false);
-                toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
-            });
-        }
-    }
+    } else if (authInput.classList.contains("disabled")) validate();
+    else authorize();
     setLoading(true);
+}
+
+//
+//Validate the user UUID
+//
+function validate() {
+    fetch("/validate", {
+        method: "POST",
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({uuid: uuidInput.value})
+    }).then(res => res.json()).then(res => {
+        const success = res.status === 200;
+        if (success) {
+            setAuthButtonText("Authorize");
+            setDisabled(uuidInput, true);
+            setDisabled(authInput, false);
+            setLoading(false);
+        } else {
+            setAuthButtonText("Validate UUID");
+            setDisabled(authInput, true);
+            authInput.value = null;
+            setDisabled(uuidInput, false);
+            setLoading(false);
+        }
+        toast(res.message, success ? "bg-success" : "bg-danger");
+    }).catch(e => {
+        setAuthButtonText("Validate UUID");
+        setDisabled(authInput, true);
+        authInput.value = null;
+        setDisabled(uuidInput, false);
+        setLoading(false);
+        toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
+    });
+}
+
+//
+//Authorize this user
+//
+async function authorize() {
+    fetch("/authorize", {
+        method: "POST",
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({authcode: authInput.value, uuid: uuidInput.value})
+    }).then(res => res.json()).then(res => {
+        const success = res.status === 200;
+        if (success) {
+            setAuthButtonText("Authorized!");
+            setDisabled(uuidInput, true);
+            setDisabled(authInput, true);
+            setLoading(false);
+        } else {
+            setAuthButtonText("Validate UUID");
+            setDisabled(authInput, true);
+            authInput.value = null;
+            setDisabled(uuidInput, false);
+            setLoading(false);
+        }
+        toast(res.message, success ? "bg-success" : "bg-danger");
+    }).catch(e => {
+        setAuthButtonText("Validate UUID");
+        setDisabled(authInput, true);
+        authInput.value = null;
+        setDisabled(uuidInput, false);
+        setLoading(false);
+        toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
+    });
 }

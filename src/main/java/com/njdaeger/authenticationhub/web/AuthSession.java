@@ -3,10 +3,11 @@ package com.njdaeger.authenticationhub.web;
 import java.util.UUID;
 
 public final class AuthSession {
-    
+
     private final UUID userId;
     private String authToken;
     private boolean authorized;
+    private long sessionStart;
 
     public AuthSession(UUID uuid, String token) {
         this.userId = uuid;
