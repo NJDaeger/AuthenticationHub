@@ -10,6 +10,12 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.*;
+import java.util.Collections;
+import java.util.stream.Stream;
 
 /**
  * Main plugin class
@@ -25,12 +31,13 @@ public final class AuthenticationHub extends JavaPlugin {
     public void onEnable() {
         instance = this;
         new File(getDataFolder(), "web").mkdirs();
-        copyToPluginFolder("web/app.js");
-        copyToPluginFolder("web/index.css");
-        copyToPluginFolder("web/bg.png");
-        copyToPluginFolder("web/bg-blue.png");
-        copyToPluginFolder("web/bg-dark.png");
-        File htmlFile = copyToPluginFolder("web/index.html");
+//        copyToPluginFolder("web/app.js");
+//        copyToPluginFolder("web/index.css");
+//        copyToPluginFolder("web/bg.png");
+//        copyToPluginFolder("web/bg-blue.png");
+//        copyToPluginFolder("web/bg-dark.png");
+        copyWebDir();
+        File htmlFile = new File(getDataFolder() + File.separator + "web" + File.separator + "index.html");
 
         task = Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             webapp = new WebApplication(this, htmlFile);
@@ -58,7 +65,30 @@ public final class AuthenticationHub extends JavaPlugin {
         return instance;
     }
 
+    private void copyWebDir() {
+        try {
+            URL url = AuthenticationHub.class.getResource("/web");
+            if (url == null) throw new RuntimeException("Unable to locate web folder in jar file.");
+            URI uri = url.toURI();
+            Path path;
+
+            if (uri.getScheme().equals("jar")) {
+                System.out.println("TEST");
+                FileSystem fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                path = fs.getPath("/web");
+            } else {
+                System.out.println("TEST2");
+                path = Paths.get(uri);
+            }
+
+            Files.walk(path, 1).filter(pth -> !pth.toString().equals("/web")).forEach(pth -> copyToPluginFolder(pth.toString().replaceFirst("/", "")));
+        } catch (URISyntaxException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private File copyToPluginFolder(String dirInJar) {
+        System.out.println(dirInJar);
         File file = new File(getDataFolder(), dirInJar);
         try {
             file.createNewFile();

@@ -50,8 +50,39 @@ function startRipple(event) {
     elem.appendChild(circle);
 }
 
-function showToast(toastId) {
-    toastList.find(toast => toast._element.id === toastId)?.show();
+//
+//Dynamically create a bootstrap toast and remove it after.
+//
+function toast(message, colorClass) {
+    const container = document.getElementById("toast-container");
+    const toastElem = document.createElement("div");
+    toastElem.classList.add("toast", "hide", "align-items-center", "text-white", "border-0", colorClass);
+    toastElem.setAttribute("role", "alert");;
+    toastElem.ariaLive = "assertive";
+    toastElem.ariaAtomic = "true";
+
+    const contentContainer = document.createElement("div");
+    contentContainer.classList.add("d-flex");
+
+    const content = document.createElement("div");
+    content.classList.add("toast-body");
+    content.innerText = message;
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.setAttribute("data-bs-dismiss", "toast");
+    closeBtn.ariaLabel = "Close"
+    closeBtn.classList.add("btn-close", "btn-close-white", "me-2", "m-auto");
+
+
+    contentContainer.appendChild(content);
+    contentContainer.appendChild(closeBtn);
+    toastElem.appendChild(contentContainer);
+    toastElem.addEventListener("hidden.bs.toast", () => {
+        toastElem.remove();
+    });
+    container.appendChild(toastElem);
+    new bootstrap.Toast(toastElem, {animation:true, autohide: true, delay: 5000}).show();
 }
 
 //
@@ -88,6 +119,7 @@ function setLoading(loading) {
 //Authorize/validate the user when input is given.
 //
 async function authorize() {
+    toast("This is a test toast!", "bg-success");
     var id = document.getElementById('uuid').value;
     if (!regexExp.test(id)) {
         showToast("toast-id-bad");
@@ -99,29 +131,63 @@ async function authorize() {
         return;
     }
     else {
-        fetch("http://localhost:4567/validate?uuid=" + id).then(res => res.json()).then(res => {
-            if (res.error) {
-                showToast("toast-id-missing");
+        if (authInput.classList.contains("disabled")) {
+            fetch("/validate", {
+                method: "POST",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({uuid: uuidInput.value})
+            }).then(res => res.json()).then(res => {
+                const success = res.status === 200;
+                if (success) {
+                    setAuthButtonText("Authorize");
+                    setDisabled(uuidInput, true);
+                    setDisabled(authInput, false);
+                    setLoading(false);
+                } else {
+                    setAuthButtonText("Validate UUID");
+                    setDisabled(authInput, true);
+                    authInput.value = null;
+                    setDisabled(uuidInput, false);
+                    setLoading(false);
+                }
+                toast(res.message, success ? "bg-success" : "bg-danger");
+            }).catch(e => {
                 setAuthButtonText("Validate UUID");
                 setDisabled(authInput, true);
                 authInput.value = null;
                 setDisabled(uuidInput, false);
                 setLoading(false);
-            } else {
-                showToast("toast-id-valid");
-                setAuthButtonText("Authorize");
-                setDisabled(uuidInput, true);
-                setDisabled(authInput, false);
+                toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
+            });
+        } else {
+            fetch("/authorize", {
+                method: "POST",
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({authcode: authInput.value, uuid: uuidInput.value})
+            }).then(res => res.json()).then(res => {
+                const success = res.status === 200;
+                if (success) {
+                    setAuthButtonText("Authorized!");
+                    setDisabled(uuidInput, true);
+                    setDisabled(authInput, true);
+                    setLoading(false);
+                } else {
+                    setAuthButtonText("Validate UUID");
+                    setDisabled(authInput, true);
+                    authInput.value = null;
+                    setDisabled(uuidInput, false);
+                    setLoading(false);
+                }
+                toast(res.message, success ? "bg-success" : "bg-danger");
+            }).catch(e => {
+                setAuthButtonText("Validate UUID");
+                setDisabled(authInput, true);
+                authInput.value = null;
+                setDisabled(uuidInput, false);
                 setLoading(false);
-            }
-        }).catch(e => {
-            showToast("toast-api-error");
-            setAuthButtonText("Validate UUID");
-            setDisabled(authInput, true);
-            authInput.value = null;
-            setDisabled(uuidInput, false);
-            setLoading(false);
-        });
+                toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
+            });
+        }
     }
     setLoading(true);
 }

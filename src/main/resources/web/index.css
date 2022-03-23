@@ -241,7 +241,7 @@ header>h5 {
 .prime-input-box span {
     display: block;
     position: absolute;
-    transform: translate(10px, 0px) scale(1);
+    transform: translate(5%, 0) scale(1);
     color: rgb(97, 97, 97);
     transition-duration: .4s;
     user-select: none;
@@ -249,7 +249,7 @@ header>h5 {
 }
 
 .prime-input-box>input:not(.disabled):hover+span,.prime-input-box>input:not(.disabled):focus+span,.prime-input-box>input:required:valid+span {
-    transform: translate(-5px, -100%) scale(.85);
+    transform: translate(-2.5%, -120%) scale(.85);
     transition-duration: .4s;
 }
 
@@ -271,7 +271,7 @@ header>h5 {
     padding: .25rem;
     border-radius: .25rem;
     border-style: solid;
-    border-width: 0.0625rem;
+    border-width: 0.125rem;
     font-size: smaller;
     transition-property: outline, border, background;
     transition-duration: .1s, .3s, .3s;
@@ -293,7 +293,7 @@ header>h5 {
 
 .prime-input-box input:disabled:required:valid+span {
     color:rgb(148, 148, 148);
-    transform: translate(-5px, -120%) scale(.85);
+    transform: translate(-2.5%, -120%) scale(.85);
     transition-duration: .4s;
 }
 
@@ -368,10 +368,10 @@ header>h5 {
 }
 
 @keyframes loading {
-    from {
-        left: -100%;
+    0% {
+        left: -50%;
     }
-    to {
+    100% {
         left: 100%;
     }
 }

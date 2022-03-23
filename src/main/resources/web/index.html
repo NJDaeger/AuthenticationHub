@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Authentication Hub</title>
     <link rel="stylesheet" href="index.css">
+    <link rel="icon" href="favicon.ico">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
@@ -35,71 +36,7 @@
             </div>
         </div>
 
-        <div class="toast-container end-0 top-0 p-3 position-fixed">
-            <div class="toast hide align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" id="toast-api-error">
-                <div class="d-flex">
-                    <div div class="toast-body">API Error. Unable to authorize profiles right now, please try again later.</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-            <div class="toast hide align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" id="toast-id-bad">
-                <div class="d-flex">
-                    <div div class="toast-body">UUID Error: Your UUID provided is not properly formatted.</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-            <div class="toast hide align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" id="toast-id-missing">
-                <div class="d-flex">
-                    <div div class="toast-body">UUID Error: Your UUID could not be found.</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-            <div class="toast hide align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" id="toast-id-valid">
-                <div class="d-flex">
-                    <div div class="toast-body">Success! Please provide your authorization code next.</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-        </div>
-        
-
-        <!-- <div class="row m-auto mt-5 col-xxl-6 col-12">
-            <div class="col-lg-4 my-lg-0 my-3">
-                <div class="card p-5 p-lg-3" id="step1">
-                    <h4 class="card-title card-header-text">Step 1</h4>
-                    <p class="card-text regular-text">Provide your Minecraft Java Edition UUID</p>
-                    <div class="prime-input-box">
-                        <input type="text" id="uuid" required onkeyup="validateUUID()">
-                        <span>Java Edition UUID</span>
-                    </div>
-                    <p id="uuid-invalid" class="hidden error"><i class="bi bi-exclamation-circle"></i> This is an invalid UUID.</p>
-                    <p id="uuid-not-found" class="hidden error"><i class="bi bi-exclamation-circle"></i> There was an error retrieving this UUID.</p>
-                    <p id="uuid-found" class="hidden info"><i class="bi bi-person-check"></i><span id="hello-message"></span></p>
-                    <button class="prime-button">Button</button>
-                </div>
-            </div>
-            <div class="col-lg-4 my-lg-0 my-3">
-                <div class="card p-5 p-lg-3" id="step2">
-                    <h4 class="card-title card-header-text">Step 2</h4>
-                    <p class="card-text regular-text">Join the server at <span id="server-ip">[server]</span> with your provided Minecraft account and copy the authorization code into the input box below.</p>
-                    <div class="prime-input-box">
-                        <input type="text" id="authcode" required>
-                        <span>Authorization Code</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4 my-lg-0 my-3">
-                <div class="card p-5 p-lg-3" id="step3">
-                    <h4 class="card-title card-header-text">Step 1</h4>
-                    <p class="card-text regular-text">Provide your Minecraft Java Edition UUID</p>
-
-                    <div class="prime-input-box">
-                        <input type="text" id="e" required>
-                        <span>Java Edition UUID</span>
-                    </div>
-                </div>
-            </div>
-        </div> -->
+        <div class="toast-container end-0 top-0 p-3 position-fixed" id="toast-container"></div>
         <script src="app.js"></script>
     </div>
 </body>
