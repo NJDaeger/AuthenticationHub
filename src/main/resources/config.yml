@@ -1,0 +1,26 @@
+#
+# Storage types for storing connection data. Valid types are the following:
+# - sql
+# - sqlite
+# - yml       Not recommended for large user bases
+#
+storage-type: sqlite
+
+# The URL where the Authentication Hub is located for your server.
+hub-url: http://localhost:4567
+
+#
+# SQL connection for storing connection and user data. Note: this is only able to be used when using the "sql" storage type
+#
+db-host: 127.0.0.1
+db-port: 3306
+db-name: authhub
+db-username: root
+db-password: password
+# Prefix authentication hub tables with this. This is null by default.
+db-prefix:
+
+#
+# Internal webserver port
+#
+webserver-port: 4567

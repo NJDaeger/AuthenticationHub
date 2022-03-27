@@ -169,11 +169,11 @@ function validate() {
 //
 //Authorize this user
 //
-async function authorize() {
+function authorize() {
     fetch("/authorize", {
         method: "POST",
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({authcode: authInput.value, uuid: uuidInput.value})
+        body: JSON.stringify({authCode: authInput.value, uuid: uuidInput.value})
     }).then(res => res.json()).then(res => {
         const success = res.status === 200;
         if (success) {

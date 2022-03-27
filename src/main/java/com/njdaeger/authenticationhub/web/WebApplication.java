@@ -30,10 +30,16 @@ public class WebApplication {
     private final Service webService;
     private final Map<UUID, AuthSession> verificationMap;
 
-    public WebApplication(Plugin plugin, File index) {
+    private static final int OK = 200;
+    private static final int BAD_REQUEST = 400;
+    private static final int UNAUTHORIZED = 401;
+    private static final int FORBIDDEN = 403;
+    private static final int SERVER_ERROR = 500;
+
+    public WebApplication(Plugin plugin) {
         this.verificationMap = new HashMap<>();
         this.plugin = plugin;
-        this.index = index;
+        this.index = new File(plugin.getDataFolder() + File.separator + "web" + File.separator + "index.html");
         plugin.getLogger().info("Initializing webserver");
 
         BasicConfigurator.configure();
@@ -62,6 +68,7 @@ public class WebApplication {
         validate();
         pullInfo();
         authorize();
+        userRoute();
     }
 
     public Service getWebService() {
@@ -69,7 +76,14 @@ public class WebApplication {
     }
 
     public void index() {
-        get("/", (req, res) -> Files.readString(index.toPath()));
+        get("/", (req, res) -> {
+//            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+//            String formId = new String(digest.digest(RandomStringUtils.random(20, true, true).getBytes()));
+            //The case below should probably never happen, but it is an edge case nonetheless
+//            while (verificationMap.containsKey(formId)) formId = new String(digest.digest(RandomStringUtils.random(20, true, true).getBytes()));
+//            verificationMap.put(formId, new AuthSession());
+            return Files.readString(index.toPath());
+        });
     }
 
     public void postTest() {
@@ -97,6 +111,24 @@ public class WebApplication {
         });
     }
 
+    public void userRoute() {
+        get("/user/:userId", (req, res) -> {
+            System.out.println(req.body());
+            UUID uuid = null;
+            try {
+                uuid = UUID.fromString(req.params(":userId"));
+            } catch (IllegalArgumentException e) {
+                throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
+            }
+            if (!verificationMap.containsKey(uuid)) throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+            AuthSession session = verificationMap.get(uuid);
+
+            if (!session.isAuthorized()) throw new RequestException("Authorization Error: You are not authorized for that action.", UNAUTHORIZED);
+            verificationMap.remove(uuid);
+            return createObject("message", "hello!", "status", OK);
+        });
+    }
+
     /**
      * /authorize
      *
@@ -111,40 +143,50 @@ public class WebApplication {
                 JsonElement body = new JsonParser().parse(req.body());
 
                 //We must be given a json object, if not, fail.
-                if (!body.isJsonObject()) throw new RuntimeException();
-
+                if (!body.isJsonObject()) throw new RequestException();
                 JsonObject obj = body.getAsJsonObject();
 
                 //The json element must exist and it must be of primitive type.
-                if (!obj.has("authcode") || !obj.has("uuid") || !obj.get("authcode").isJsonPrimitive() || !obj.get("uuid").isJsonPrimitive()) throw new RuntimeException();
+                if (!obj.has("authCode") || !obj.has("uuid") || !obj.get("authCode").isJsonPrimitive() || !obj.get("uuid").isJsonPrimitive()) throw new RequestException();
 
                 //Ensure the UUID provided is a valid UUID
                 try {
                     uuid = UUID.fromString(obj.get("uuid").getAsString());
                 } catch (IllegalArgumentException e) {
-                    throw new RuntimeException("UUID Error: Your UUID provided is not properly formatted.");
+                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
                 }
 
                 //Verify the provided UUID has been validated.
-                if (!verificationMap.containsKey(uuid)) throw new RuntimeException();
+                if (!verificationMap.containsKey(uuid)) throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+                AuthSession session = verificationMap.get(uuid);
 
-                //If the auth code provided doesnt match the auth code stored, remove the auth code. user must try again.
-                if (!verificationMap.get(uuid).equals(obj.get("authcode").getAsString())) {
-                    verificationMap.remove(uuid);
-                    throw new RuntimeException("Authorization Error: Your AuthCode did not match your provided auth code.");
-                }
+                if (session.getAuthToken() == null) throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
+
+                if (session.isAuthorized()) throw new RequestException("Authorization Error: You must request a new AuthCode.", UNAUTHORIZED);
+
+                if (!session.getAuthToken().equals(obj.get("authCode").getAsString())) throw new RequestException("Authorization Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
+
 
                 res.header("content-type", "application/json");
-                res.status(200);
+                res.status(OK);
+                session.setAuthorized(true);
+                res.body(createObject("authCode", session.getAuthToken()).toString());
+                res.redirect("/user/" + uuid);
+
                 //this is where we would return the list of user services.
-                return createObject("message", "Success! You are who you say you are.", "status", 200);
+                return createObject("message", "Success!11", "status", OK);
 
                 //Otherwise, we want to fail, as the provided auth code didn't match our saved auth code.
+            } catch (RequestException e) {
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
             } catch (Exception e) {
                 if (uuid != null) verificationMap.remove(uuid);
                 res.header("content-type", "application/json");
-                res.status(400);
-                return createObject("message", e.getMessage() == null ? "Bad request" : e.getMessage(), "status", 400);
+                res.status(SERVER_ERROR);
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
             }
         });
     }
@@ -178,49 +220,46 @@ public class WebApplication {
                 JsonElement body = new JsonParser().parse(req.body());
 
                 //We must be given a json object, if not, fail.
-                if (!body.isJsonObject()) throw new RuntimeException();
-
+                if (!body.isJsonObject()) throw new RequestException();
                 JsonObject obj = body.getAsJsonObject();
 
                 //The json element must exist and it must be of primitive type.
-                if (!obj.has("uuid") || !obj.get("uuid").isJsonPrimitive()) throw new RuntimeException();
+                if (!obj.has("uuid") || !obj.get("uuid").isJsonPrimitive()) throw new RequestException();
 
                 //Ensure the UUID provided is a valid UUID
                 try {
                     uuid = UUID.fromString(obj.get("uuid").getAsString());
                 } catch (IllegalArgumentException e) {
-                    throw new RuntimeException("UUID Error: Your UUID provided is not properly formatted.");
+                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
                 }
 
                 JsonElement session = readJsonFromUrl("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.toString().replaceAll("-", ""));
-                if (session instanceof JsonNull) throw new RuntimeException("Verification Error: There was a problem trying to process your request. Please try again later.");
+                if (session instanceof JsonNull) throw new RequestException("Verification Error: There was a problem trying to process your request. Please try again later.");
 
                 res.header("content-type", "application/json");
-                res.status(200);
-                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid, RandomStringUtils.random(10, true, true)));
-                System.out.println("mapping: " + verificationMap.get(uuid).getAuthToken());
-                return createObject("message", "Success! Please provide your authorization code next.", "status", 200);
+                res.status(OK);
+                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid));
+                return createObject("message", "Success! Please provide your authorization code next.", "status", OK);
+            } catch (RequestException e) {
+                if (uuid != null) verificationMap.remove(uuid);
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
             } catch (Exception e) {
                 if (uuid != null) verificationMap.remove(uuid);
                 res.header("content-type", "application/json");
-                res.status(400);
-                return createObject("message", e.getMessage() == null ? "Bad request" : e.getMessage(), "status", 400);
+                res.status(SERVER_ERROR);
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
             }
         });
     }
-
-//    public void verifyUser() {
-//        get("/verify", "application/json", (req, res) -> {
-//            res.type("application/json");
-//
-//        });
-//    }
 
     public JsonObject createObject(Object... values) {
         if (values.length % 2 != 0) throw new RuntimeException("Error creating json object. (key value mismatch)");
         JsonObject obj = new JsonObject();
         for (int i = 0; i < values.length; i+=2) {
-            String key = values[i].toString();//this really SHOULD be a string.. im going to treat it that way.
+            String key = values[i].toString();//this really SHOULD be a string- im going to treat it that way.
             Object value = values[i + 1];
             if (value instanceof String s) {
                 obj.addProperty(key, s);
@@ -237,7 +276,25 @@ public class WebApplication {
         return obj;
     }
 
-//    public JsonObject createObject(String key, String val) {
+    /**
+     * Gets an auth session from a given UUID.
+     * @param userId The UUID associated with the auth session to get.
+     * @return The AuthSession, or null if there was no auth session associated with the given UUID.
+     */
+    public AuthSession getAuthSession(UUID userId) {
+        return verificationMap.get(userId);
+    }
+
+    /**
+     * Removes a given AuthSession
+     * @param userId The UUID associated with the auth session that is to be removed.
+     * @return True if the auth session was removed, false if there was no auth session removed.
+     */
+    public boolean removeSession(UUID userId) {
+        return verificationMap.remove(userId) != null;
+    }
+
+    //    public JsonObject createObject(String key, String val) {
 //        JsonObject obj = new JsonObject();
 //        obj.addProperty(key, val);
 //        return obj;

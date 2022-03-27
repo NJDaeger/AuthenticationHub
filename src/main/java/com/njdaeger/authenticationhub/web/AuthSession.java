@@ -5,14 +5,18 @@ import java.util.UUID;
 public final class AuthSession {
 
     private final UUID userId;
-    private String authToken;
     private boolean authorized;
-    private long sessionStart;
+    private final long sessionStart;
+    private String authToken;
 
-    public AuthSession(UUID uuid, String token) {
-        this.userId = uuid;
-        this.authToken = token;
+    public AuthSession(UUID userId) {
+        this.userId = userId;
         this.authorized = false;
+        this.sessionStart = System.currentTimeMillis();
+    }
+
+    public long getSessionStart() {
+        return sessionStart;
     }
 
     public UUID getUserId() {
@@ -23,15 +27,16 @@ public final class AuthSession {
         this.authorized = authorized;
     }
 
-    public void setAuthToken(String authToken) {
-        this.authToken = authToken;
-    }
-
     public boolean isAuthorized() {
         return authorized;
     }
 
     public String getAuthToken() {
         return authToken;
+    }
+
+
+    public void setAuthToken(String authToken) {
+        this.authToken = authToken;
     }
 }

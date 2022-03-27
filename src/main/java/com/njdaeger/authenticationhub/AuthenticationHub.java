@@ -3,8 +3,8 @@ package com.njdaeger.authenticationhub;
 import com.google.common.io.ByteStreams;
 import com.njdaeger.authenticationhub.web.WebApplication;
 import org.bukkit.Bukkit;
+import org.bukkit.command.CommandMap;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -15,7 +15,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.Collections;
-import java.util.stream.Stream;
 
 /**
  * Main plugin class
@@ -23,33 +22,39 @@ import java.util.stream.Stream;
 public final class AuthenticationHub extends JavaPlugin {
 
     private WebApplication webapp = null;
-    private BukkitTask task = null;
-    private static ApplicationRegistry registry;
+    private AuthenticationHubConfig config;
+    private ApplicationRegistry registry;
     private static AuthenticationHub instance;
 
     @Override
     public void onEnable() {
         instance = this;
+        this.config = new AuthenticationHubConfig(this);
         new File(getDataFolder(), "web").mkdirs();
-//        copyToPluginFolder("web/app.js");
-//        copyToPluginFolder("web/index.css");
-//        copyToPluginFolder("web/bg.png");
-//        copyToPluginFolder("web/bg-blue.png");
-//        copyToPluginFolder("web/bg-dark.png");
         copyWebDir();
-        File htmlFile = new File(getDataFolder() + File.separator + "web" + File.separator + "index.html");
 
-        task = Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-            webapp = new WebApplication(this, htmlFile);
-        });
+        //Starting the webserver
+        this.webapp = new WebApplication(this);
+        this.registry = new ApplicationRegistry(this);
 
-        registry = new ApplicationRegistry(this);
+        //Registering command
+        try {
+            var commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+            commandMapField.setAccessible(true);
+            var commandMap = (CommandMap) commandMapField.get(Bukkit.getServer());
+            commandMap.register("authhub", new AuthenticationHubCommand(webapp));
+
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+
+        //Registering event listener
+        Bukkit.getPluginManager().registerEvents(new AuthenticationHubListeners(webapp), this);
     }
 
     @Override
     public void onDisable() {
         webapp.getWebService().stop();
-        task.cancel();
         registry = null;
     }
 
@@ -57,8 +62,16 @@ public final class AuthenticationHub extends JavaPlugin {
      * Get the ApplicationRegistry where all authorizable applications are registered.
      * @return The ApplicationRegistry
      */
-    public static ApplicationRegistry getApplicationRegistry() {
+    public ApplicationRegistry getApplicationRegistry() {
         return registry;
+    }
+
+    /**
+     * Get the AuthenticationHub configuration
+     * @return The AuthenticationHub config
+     */
+    public AuthenticationHubConfig getAuthHubConfig() {
+        return config;
     }
 
     static AuthenticationHub getInstance() {
@@ -73,11 +86,9 @@ public final class AuthenticationHub extends JavaPlugin {
             Path path;
 
             if (uri.getScheme().equals("jar")) {
-                System.out.println("TEST");
                 FileSystem fs = FileSystems.newFileSystem(uri, Collections.emptyMap());
                 path = fs.getPath("/web");
             } else {
-                System.out.println("TEST2");
                 path = Paths.get(uri);
             }
 
@@ -88,7 +99,6 @@ public final class AuthenticationHub extends JavaPlugin {
     }
 
     private File copyToPluginFolder(String dirInJar) {
-        System.out.println(dirInJar);
         File file = new File(getDataFolder(), dirInJar);
         try {
             file.createNewFile();
@@ -104,5 +114,4 @@ public final class AuthenticationHub extends JavaPlugin {
         }
         return file;
     }
-
 }
