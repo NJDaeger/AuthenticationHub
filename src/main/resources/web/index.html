@@ -3,41 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <title>Authentication Hub</title>
-    <link rel="stylesheet" href="index.css">
-    <link rel="icon" href="favicon.png">
+    <link rel="stylesheet" href="../index.css">
+    <link rel="icon" href="../favicon.png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 </head>
 <body>
-    <img src="bg-blue.png" alt="" id="background">
+    <img src="../bg-blue.png" alt="" id="background">
     <span class="loadbar"><div></div></span>
     <div id="root">
         <header>
             <h1 class="animateFirst">Authentication Hub</h1>
             <h5 class="animateSecond">Link your accounts to Minecraft!</h5>
         </header>
-        <div class="row m-auto mt-5 col-xxl-6 col-12 justify-content-center">
-            <p id="instruction-message">
-                Welcome to AuthenticationHub! Please provide your Minecraft Java Edition UUID and a copy of your authorization code provided to you by joining this server <span id="server-ip">[server]</span>.
-            </p>
-            <div class="d-inline-flex flex-xxl-row justify-content-center align-items-center flex-column">
-                <div class="col-xxl-4 col-10 m-2 prime-input-box ripple">
-                    <input type="text" id="uuid" required>
-                    <span>Java Edition UUID</span>
+        <div id="content">
+            
+            <div id="authform" class="row m-auto mt-5 col-xxl-6 col-12 justify-content-center">
+                <p id="instruction-message">
+                    Welcome to AuthenticationHub! Please provide your Minecraft Java Edition UUID and a copy of your authorization code provided to you by joining this server <span id="server-ip">[server]</span>.
+                </p>
+                <div class="d-inline-flex flex-xxl-row justify-content-center align-items-center flex-column">
+                    <div class="col-xxl-4 col-10 m-2 prime-input-box ripple">
+                        <input type="text" id="uuid" required>
+                        <span>Java Edition UUID</span>
+                    </div>
+                    <div class="col-xxl-4 col-10 m-2 prime-input-box ripple">
+                        <input type="text" id="auth-code" class="disabled" required>
+                        <span>Authorization Code</span>
+                    </div>
                 </div>
-                <div class="col-xxl-4 col-10 m-2 prime-input-box ripple">
-                    <input type="text" id="auth-code" class="disabled" required>
-                    <span>Authorization Code</span>
+                <div id="auth-container" class="col-xxl-4 col-10 m-2 m--1 prime-button ripple">
+                    <button id="authorize" onclick="buttonPress()">Validate UUID</button>
                 </div>
             </div>
-            <div id="auth-container" class="col-xxl-4 col-10 m-2 m--1 prime-button ripple">
-                <button id="authorize" onclick="buttonPress()">Validate UUID</button>
+            
+
+            <div id="app-list" class="gone flex-column align-items-center row m-auto mt-5 col-xxl-6 col-12 justify-content-center">
+                <h2 class="text-center">Account links:</h2>
+                <!-- <div class="col-xxl-4 col-10 m-2 m--1 prime-button ripple"> -->
+                    <!-- TODO: On hover, suggest disconnecting if they have already connected the service -->
+                    <!-- <button id="app1">Patreon <span><i class="bi bi-check2"></i></span></button> -->
+                <!-- </div> -->
+                <!-- <div class="col-xxl-4 col-10 m-2 m--1 prime-button ripple"> -->
+                    <!-- TODO: On hover, suggest connecting if they havent connected the service -->
+                    <!-- <button id="app2">Discord <span></span></button> -->
+                <!-- </div> -->
             </div>
+
         </div>
 
         <div class="toast-container end-0 top-0 p-3 position-fixed" id="toast-container"></div>
-        <script src="app.js"></script>
+        <script src="../app.js"></script>
     </div>
 </body>
 </html>

@@ -25,6 +25,27 @@ var toastList = toastElList.map(function (toastEl) {
 uuidInput.addEventListener("keydown", noType);
 authInput.addEventListener("keydown", noType);
 
+// if (window.location.href.contains("?session=")) {
+//     //TODO: if it contains the session query param, we want to fetch the connections for this user.
+// } else {
+//     //TODO: if it does not contain the ?session= query param, load the input boxes
+// }
+
+var authForm = document.getElementById("authform");
+var appList = document.getElementById("app-list");
+authForm.addEventListener('animationend', () => {
+    if (authForm.classList.contains("hiding")) {
+        authForm.classList.add("gone")
+        authForm.classList.remove("hiding");
+    }
+});
+appList.addEventListener('animationend', () => {
+    if (appList.classList.contains("hiding")) {
+        appList.classList.add("gone")
+        appList.classList.remove("hiding");
+    }
+})
+
 //Disable typing in an input box
 function noType(event) {
     if (!event.currentTarget.classList.contains("disabled")) return;
@@ -107,6 +128,29 @@ function setAuthButtonText(text) {
     }, 100);
 }
 
+//TODO: make an endpoint for the connection buttons that gets called to for the user that checks the status of their auth session. If their auth session is good, forward them to the link
+
+
+function hideForm() {
+    authForm.classList.add("hiding");
+    authForm.classList.remove("open");
+}
+
+function showForm() {
+    authForm.classList.add("open");
+    authForm.classList.remove("gone");
+}
+
+function hideAppList() {
+    appList.classList.add("hiding");
+    appList.classList.remove("open");
+}
+
+function showAppList() {
+    appList.classList.add("open");
+    appList.classList.remove("gone");
+}
+
 //
 //Whether to show the loading bar on the page or not
 //
@@ -138,7 +182,7 @@ function buttonPress() {
 //
 function validate() {
     fetch("/validate", {
-        method: "POST",
+        method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({uuid: uuidInput.value})
     }).then(res => res.json()).then(res => {
@@ -157,6 +201,7 @@ function validate() {
         }
         toast(res.message, success ? "bg-success" : "bg-danger");
     }).catch(e => {
+        console.log(e);
         setAuthButtonText("Validate UUID");
         setDisabled(authInput, true);
         authInput.value = null;
@@ -171,11 +216,18 @@ function validate() {
 //
 function authorize() {
     fetch("/authorize", {
-        method: "POST",
+        method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({authCode: authInput.value, uuid: uuidInput.value})
-    }).then(res => res.json()).then(res => {
+    }).then(res => {
+        if (res.call) return {status: 200, message: "Authorized!", call: res.call};
+        else return res.json()
+    }).then(res => {
         const success = res.status === 200;
+        if (res.call) {
+            hideForm();
+            connections(res.call);
+        }
         if (success) {
             setAuthButtonText("Authorized!");
             setDisabled(uuidInput, true);
@@ -190,6 +242,7 @@ function authorize() {
         }
         toast(res.message, success ? "bg-success" : "bg-danger");
     }).catch(e => {
+        console.log(e);
         setAuthButtonText("Validate UUID");
         setDisabled(authInput, true);
         authInput.value = null;
@@ -198,3 +251,40 @@ function authorize() {
         toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
     });
 }
+
+function connections(url) {
+    setLoading(true);
+    fetch(url).then(res => res.json()).then(res => {
+        generateConnectionButtons(res.apps);
+        showAppList();
+        console.log(res);
+        setLoading(false);
+    }).catch(e => {
+        console.log(e);
+        setAuthButtonText("Validate UUID");
+        showForm();
+        hideAppList();
+        setDisabled(authInput, true);
+        authInput.value = null;
+        setDisabled(uuidInput, false);
+        setLoading(false);
+        toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
+    });
+}
+
+function generateConnectionButtons(connections) {
+    connections.forEach(elem => {
+        var appContainerDiv = document.createElement('div');
+        appContainerDiv.classList.add("col-xxl-4", "col-10", "m-2", "prime-button", "ripple");
+        var appButton = document.createElement('button');
+        appButton.id = elem.name;
+        if (elem.connected) appButton.innerHTML = elem.name + `<span><i class="bi bi-check2"></i></span>`;
+        else  appButton.innerHTML = elem.name;
+        appContainerDiv.append(appButton);
+        appList.append(appContainerDiv);
+    });
+}
+
+/*
+When the UUID is authorized, fade out the authform and start the loading bar until the response from the connections request is recieved. dont redirect the page
+*/

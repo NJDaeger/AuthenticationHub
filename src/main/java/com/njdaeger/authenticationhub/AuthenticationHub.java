@@ -1,9 +1,12 @@
 package com.njdaeger.authenticationhub;
 
 import com.google.common.io.ByteStreams;
+import com.njdaeger.authenticationhub.database.IDatabase;
+import com.njdaeger.authenticationhub.patreon.PatreonApplication;
 import com.njdaeger.authenticationhub.web.WebApplication;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -24,6 +27,7 @@ public final class AuthenticationHub extends JavaPlugin {
     private WebApplication webapp = null;
     private AuthenticationHubConfig config;
     private ApplicationRegistry registry;
+    private IDatabase database;
     private static AuthenticationHub instance;
 
     @Override
@@ -32,10 +36,11 @@ public final class AuthenticationHub extends JavaPlugin {
         this.config = new AuthenticationHubConfig(this);
         new File(getDataFolder(), "web").mkdirs();
         copyWebDir();
-
-        //Starting the webserver
-        this.webapp = new WebApplication(this);
+        this.database = config.getStorageHandler().getDatabase(this);
+        database.createDatabase();
         this.registry = new ApplicationRegistry(this);
+        //Starting the webserver
+        this.webapp = new WebApplication(this, config, registry);
 
         //Registering command
         try {
@@ -43,17 +48,21 @@ public final class AuthenticationHub extends JavaPlugin {
             commandMapField.setAccessible(true);
             var commandMap = (CommandMap) commandMapField.get(Bukkit.getServer());
             commandMap.register("authhub", new AuthenticationHubCommand(webapp));
-
         } catch (NoSuchFieldException | IllegalAccessException e) {
             e.printStackTrace();
         }
 
         //Registering event listener
         Bukkit.getPluginManager().registerEvents(new AuthenticationHubListeners(webapp), this);
+        Bukkit.getServicesManager().register(ApplicationRegistry.class, registry, this, ServicePriority.Normal);
+
+        getApplicationRegistry().addApplication(new PatreonApplication());
     }
 
     @Override
     public void onDisable() {
+        database.save();
+        database.close();
         webapp.getWebService().stop();
         registry = null;
     }
@@ -72,6 +81,14 @@ public final class AuthenticationHub extends JavaPlugin {
      */
     public AuthenticationHubConfig getAuthHubConfig() {
         return config;
+    }
+
+    /**
+     * Get the database that stores user data.
+     * @return The storage database
+     */
+    public IDatabase getDatabase() {
+        return database;
     }
 
     static AuthenticationHub getInstance() {

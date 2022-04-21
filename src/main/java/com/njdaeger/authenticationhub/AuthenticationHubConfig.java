@@ -1,6 +1,6 @@
 package com.njdaeger.authenticationhub;
 
-import com.njdaeger.authenticationhub.database.StorageType;
+import com.njdaeger.authenticationhub.database.StorageHandler;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -17,17 +17,17 @@ public class AuthenticationHubConfig {
     }
 
     /**
-     * Get the storage type currently enabled for Authentication Hub.
-     * @return The storage type
+     * Get the storage handler currently enabled for Authentication Hub.
+     * @return The storage handler
      */
-    public StorageType getStorageType() {
-        String storage = config.getString("storage-type", StorageType.SQLITE.name());
-        StorageType type;
+    public StorageHandler getStorageHandler() {
+        String storage = config.getString("storage-handler", "YML");
+        StorageHandler<?> type;
         try {
-            type = StorageType.valueOf(storage.toUpperCase());
+            type = StorageHandler.getStorageHandler(storage.toUpperCase());
         } catch (IllegalArgumentException e) {
-            type = StorageType.SQLITE;
-            plugin.getLogger().warning("The value for \"storage-type\" could not be parsed. Defaulting to " + type.name().toLowerCase());
+            type = StorageHandler.YML;
+            plugin.getLogger().warning("The value for \"storage-type\" could not be parsed. Defaulting to " + type.getNiceName());
         }
         return type;
     }

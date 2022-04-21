@@ -1,18 +1,25 @@
 package com.njdaeger.authenticationhub;
 
+import com.njdaeger.authenticationhub.database.IDatabase;
+import com.njdaeger.authenticationhub.web.AuthSession;
+import com.njdaeger.authenticationhub.web.RequestException;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import spark.Request;
 import spark.Route;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
  * Represents an application that can be authorized and connected to a Minecraft account.
  */
-public abstract class Application {
+public abstract class Application<T> {
 
+    IDatabase database;
+    protected File appConfigFile;
     private Configuration appConfig;
     protected Boolean canBeLoaded = null;
 
@@ -26,6 +33,8 @@ public abstract class Application {
 
         if (canBeLoaded == null) {
             canBeLoaded = true;
+            this.database = AuthenticationHub.getInstance().getDatabase();
+            if (database.getApplicationId(this) == -1) database.createApplication(this);
             logger.info(getUniqueName() + " application initialization complete.");
         }
     }
@@ -49,9 +58,21 @@ public abstract class Application {
 
     /**
      * Function to call when the client connects to the {@link Application#getUniqueName()} route.
-     * This should connect whatever application/service is to be authorized.
+     * This should handle any kind of calls needed for connecting a minecraft account to a given user.
      */
-    public abstract Route connect();
+//    public abstract JsonObject connect(UUID userId) throws IOException, InterruptedException;
+
+    public abstract String getConnectionUrl(AuthSession session);
+
+    public abstract void handleCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException;
+
+    public boolean hasConnection(UUID user) {
+        return database.getUserToken(this, user) != null;
+    }
+
+    public T getConnection(UUID user) {
+        return null;//todo make a rowtransformer thing T that transforms a database result into something useful for this application
+    }
 
     /**
      * Get the associated configuration file with this application. If a configuration file does not exist yet,
@@ -69,7 +90,7 @@ public abstract class Application {
      */
     private Configuration createConfig() {
         if (appConfig != null) return appConfig;
-        File appConfigFile = new File(AuthenticationHub.getInstance().getDataFolder().getAbsoluteFile() + File.separator + getUniqueName() + ".yml");
+        this.appConfigFile = new File(AuthenticationHub.getInstance().getDataFolder().getAbsoluteFile() + File.separator + getUniqueName() + ".yml");
         if (!appConfigFile.exists()) {
             try {
                 appConfigFile.createNewFile();

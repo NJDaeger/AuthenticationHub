@@ -1,4 +1,21 @@
 :root {
+
+    /* Needed colors
+        
+    primary-item: #0084ff
+    primary-text: #212529
+    primary-item-accent: #52abff
+
+    primary-input-background: #ffffff
+    primary-input-hint: #686868
+
+    disabled-item: #b7b7b7
+    disabled-text: #404040
+    disabled-item-accent: #c2c2c2
+    disabled-input-background: #dfdfdf
+    
+     */
+
     --input-hover-color: #0084ff;
     --input-outline-color: #0084ffaa;
     --input-outline-color-off: #0084ff00;
@@ -15,6 +32,9 @@
     --light-blue-base: #f9fafb;
     --light-base: #f9fafb;
     --dark-base: #515159;
+
+    --app-linked-color: #0ea050;
+    --app-linked-color-outline: #10b45a;
 }
 
 /*
@@ -115,6 +135,18 @@
     transition-duration: 0.3s;
 }
 
+.hiding {
+    animation: hide .5s cubic-bezier(1,.02,.57,1.22) forwards;
+}
+
+.open {
+    animation: show .5s ease-in forwards;
+}
+
+.gone {
+    display: none !important;
+}
+
 /*
 
  #       ####    ##   #####  # #    #  ####     #####    ##   #####
@@ -164,6 +196,10 @@
  # #####  ###### #    #   #   # #      # ###### #    #  ####
 
 */
+#content {
+    overflow-x: hidden;
+}
+
 #root {
     height: 100%;
     width: 100%;
@@ -183,6 +219,13 @@
 #instruction-message {
     font-size: var(--card-header-font-size);
     text-align: center;
+}
+
+#app-list {
+    border-radius: .5rem;
+    border-color: var(--input-background);
+    border-width: .125rem;
+    border-style: solid;
 }
 
 /*
@@ -271,7 +314,7 @@ header>h5 {
     padding: .25rem;
     border-radius: .25rem;
     border-style: solid;
-    border-width: 0.125rem;
+    border-width: 0.0625rem;
     font-size: smaller;
     transition-property: outline, border, background;
     transition-duration: .1s, .3s, .3s;
@@ -380,6 +423,28 @@ header>h5 {
     to {
         transform: scale(4);
         opacity: 0;
+    }
+}
+
+@keyframes hide {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(30px) scale(.98);
+        opacity: 0;
+    }
+}
+
+@keyframes show {
+    0% {
+        transform: translateY(30px) scale(.98);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
     }
 }
 

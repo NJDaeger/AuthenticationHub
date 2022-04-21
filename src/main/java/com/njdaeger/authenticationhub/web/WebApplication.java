@@ -1,22 +1,21 @@
 package com.njdaeger.authenticationhub.web;
 
 import com.google.gson.*;
-import org.apache.commons.lang.RandomStringUtils;
+import com.njdaeger.authenticationhub.Application;
+import com.njdaeger.authenticationhub.ApplicationRegistry;
+import com.njdaeger.authenticationhub.AuthenticationHub;
+import com.njdaeger.authenticationhub.AuthenticationHubConfig;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.PropertyConfigurator;
-import org.bukkit.plugin.Plugin;
 import spark.Service;
 
 import java.io.*;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 
+import static com.njdaeger.authenticationhub.web.WebUtils.*;
 import static spark.Service.ignite;
 import static spark.Spark.*;
 
@@ -26,19 +25,17 @@ import static spark.Spark.*;
 public class WebApplication {
 
     private final File index;
-    private final Plugin plugin;
     private final Service webService;
+    private final AuthenticationHub plugin;
+    private final ApplicationRegistry registry;
+    private final AuthenticationHubConfig config;
     private final Map<UUID, AuthSession> verificationMap;
 
-    private static final int OK = 200;
-    private static final int BAD_REQUEST = 400;
-    private static final int UNAUTHORIZED = 401;
-    private static final int FORBIDDEN = 403;
-    private static final int SERVER_ERROR = 500;
-
-    public WebApplication(Plugin plugin) {
+    public WebApplication(AuthenticationHub plugin, AuthenticationHubConfig config, ApplicationRegistry registry) {
         this.verificationMap = new HashMap<>();
         this.plugin = plugin;
+        this.config = config;
+        this.registry = registry;
         this.index = new File(plugin.getDataFolder() + File.separator + "web" + File.separator + "index.html");
         plugin.getLogger().info("Initializing webserver");
 
@@ -64,11 +61,12 @@ public class WebApplication {
         });
 
         index();
-        postTest();
         validate();
         pullInfo();
         authorize();
         userRoute();
+        appRouting();
+        userConnections();
     }
 
     public Service getWebService() {
@@ -85,14 +83,6 @@ public class WebApplication {
             return Files.readString(index.toPath());
         });
     }
-
-    public void postTest() {
-        post("/test", (req, res) -> {
-            plugin.getLogger().info(req.body());
-            return "this is returned";
-        });
-    }
-
     /**
      * When the user first loads the webpage, the webpage needs to.
      *
@@ -111,22 +101,248 @@ public class WebApplication {
         });
     }
 
-    public void userRoute() {
-        get("/user/:userId", (req, res) -> {
-            System.out.println(req.body());
+    public void userConnections() {
+        get("/user/:userid/applications", (req, res) -> {
             UUID uuid = null;
             try {
-                uuid = UUID.fromString(req.params(":userId"));
-            } catch (IllegalArgumentException e) {
-                throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
-            }
-            if (!verificationMap.containsKey(uuid)) throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
-            AuthSession session = verificationMap.get(uuid);
+                if (req.queryParamsSafe("session") == null || req.params(":userId") == null) throw new RequestException();
+                try {
+                    uuid = UUID.fromString(req.params(":userId"));
+                } catch (IllegalArgumentException e) {
+                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
+                }
 
-            if (!session.isAuthorized()) throw new RequestException("Authorization Error: You are not authorized for that action.", UNAUTHORIZED);
-            verificationMap.remove(uuid);
-            return createObject("message", "hello!", "status", OK);
+                //If the user has not been registered to the database, we dont want to do anything else.
+                if (plugin.getDatabase().getUserId(uuid) == -1)
+                    throw new RequestException("Authorization Error: User has not been registered.", UNAUTHORIZED);
+
+                //If the session map does not contain the given UUID, dont allow this to be called
+                if (!verificationMap.containsKey(uuid))
+                    throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+
+                AuthSession session = verificationMap.get(uuid);
+
+                //If the user has timed their session out, the session must be removed from the session map.
+                if ((System.currentTimeMillis() - session.getSessionStart()) > 1000*60*10) {
+                    verificationMap.remove(uuid);
+                    throw new RequestException("Timeout: You have exceeded the session timeout limit.", FORBIDDEN);
+                }
+
+                //If the user is trying to join from another location than what their auth session remembered, they will not be allowed to do this
+                if (!session.getIpAddress().equals(req.ip()) || !session.isAuthorized())
+                    throw new RequestException("Authorization Error: You are not authorized to do that.", UNAUTHORIZED);
+
+                //If the user does not have an auth token at this point, they have likely not been verified yet. Normally shouldn't happen.
+                if (session.getAuthToken() == null)
+                    throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
+
+                //If the auth code provided in this does not match the provided auth code, they will not be allowed to do this.
+                if (!session.getAuthToken().equals(req.queryParamsSafe("session")))
+                    throw new RequestException("Authorization Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
+
+                var result = new JsonArray();
+                UUID finalUuid = uuid;
+                registry.getApplications().forEach(application -> {
+                    result.add(createObject("name", application.getApplicationName(), "connected", application.hasConnection(finalUuid), "connection", application.getConnectionUrl(session)));
+                });
+                return createObject("apps", result);
+            } catch (RequestException e) {
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
+            } catch (Exception e) {
+                if (uuid != null) verificationMap.remove(uuid);
+                res.header("content-type", "application/json");
+                res.status(SERVER_ERROR);
+                res.redirect("/");
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
+            }
         });
+    }
+
+    public void userRoute() {
+        get("/user/:userId", (req, res) -> {
+            UUID uuid = null;
+            try {
+                if (req.queryParamsSafe("session") == null || req.params(":userId") == null) throw new RequestException();
+                try {
+                    uuid = UUID.fromString(req.params(":userId"));
+                } catch (IllegalArgumentException e) {
+                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
+                }
+
+                //If the user has not been registered to the database, we dont want to do anything else.
+                if (plugin.getDatabase().getUserId(uuid) == -1)
+                    throw new RequestException("Authorization Error: User has not been registered.", UNAUTHORIZED);
+
+                //If the session map does not contain the given UUID, dont allow this to be called
+                if (!verificationMap.containsKey(uuid))
+                    throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+
+                AuthSession session = verificationMap.get(uuid);
+
+                //If the user has timed their session out, the session must be removed from the session map.
+                if ((System.currentTimeMillis() - session.getSessionStart()) > 1000*60*10) {
+                    verificationMap.remove(uuid);
+                    throw new RequestException("Timeout: You have exceeded the session timeout limit.", FORBIDDEN);
+                }
+
+                //If the user is trying to join from another location than what their auth session remembered, they will not be allowed to do this
+                if (!session.getIpAddress().equals(req.ip()) || !session.isAuthorized())
+                    throw new RequestException("Authorization Error: You are not authorized to do that.", UNAUTHORIZED);
+
+                //If the user does not have an auth token at this point, they have likely not been verified yet. Normally shouldn't happen.
+                if (session.getAuthToken() == null)
+                    throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
+
+                //If the auth code provided in this does not match the provided auth code, they will not be allowed to do this.
+                if (!session.getAuthToken().equals(req.queryParamsSafe("session")))
+                    throw new RequestException("Authorization Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
+
+                return Files.readString(index.toPath());
+            } catch (RequestException e) {
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
+            } catch (Exception e) {
+                if (uuid != null) verificationMap.remove(uuid);
+                res.header("content-type", "application/json");
+                res.status(SERVER_ERROR);
+                res.redirect("/");
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
+            }
+        });
+    }
+
+    //todo: ideally, we should make it redirect to just a standard /callback, and have the ?state variable contain ALL information needed to reconstruct the page. eg. the uuid, authcode, application just called back.
+    private void appRouting() {
+        get("/callback", (req, res) -> {
+            UUID uuid = null;
+
+            if (req.queryParamsSafe("state") == null) throw new RequestException();
+
+            try {
+
+                if (req.queryParamsSafe("state") == null) throw new RequestException();
+
+                var result = new String(Base64.getUrlDecoder().decode(req.queryParamsSafe("state").getBytes())).split("\\|");
+                var appName = result[0];
+                var userId = result[1];
+                var authToken = result[2];
+
+                System.out.println(req.ip());
+                System.out.println(Arrays.toString(result));
+
+                try {
+                    uuid = UUID.fromString(userId);
+                } catch (IllegalArgumentException e) {
+                    throw new RequestException("State Error: Bad encoded UUID.");
+                }
+
+                //If the user has not been registered to the database, we dont want to do anything else.
+                if (plugin.getDatabase().getUserId(uuid) == -1)
+                    throw new RequestException("Authorization Error: User has not been registered.", UNAUTHORIZED);
+
+                //If the session map does not contain the given UUID, dont allow this to be called
+                if (!verificationMap.containsKey(uuid))
+                    throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+
+                AuthSession session = verificationMap.get(uuid);
+
+                //If the user has timed their session out, the session must be removed from the session map.
+                if ((System.currentTimeMillis() - session.getSessionStart()) > 1000*60*10) {
+                    verificationMap.remove(uuid);
+                    throw new RequestException("Timeout: You have exceeded the session timeout limit.", FORBIDDEN);
+                }
+
+                //If the user is trying to join from another location than what their auth session remembered, they will not be allowed to do this
+                if (!session.getIpAddress().equals(req.ip()) || !session.isAuthorized())
+                    throw new RequestException("Authorization Error: You are not authorized to do that.", UNAUTHORIZED);
+
+                //If the user does not have an auth token at this point, they have likely not been verified yet. Normally shouldn't happen.
+                if (session.getAuthToken() == null)
+                    throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
+
+                if (!session.getAuthToken().equals(authToken))
+                    throw new RequestException("Authorization Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
+
+                var application = registry.getApplications().stream().filter(app -> app.getUniqueName().equals(appName)).findFirst();
+                if (application.isPresent()) application.get().handleCallback(req, uuid, session);
+                else throw new RequestException("State Error: Bad encoded application.");
+
+                res.redirect("/?state=" + req.queryParamsSafe("state"));
+                return null;
+            } catch (RequestException e) {
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
+            } catch (Exception e) {
+                if (uuid != null) verificationMap.remove(uuid);
+                res.header("content-type", "application/json");
+                res.status(SERVER_ERROR);
+                res.redirect("/");
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
+            }
+        });
+//        registry.getApplications().forEach(application-> {
+//            post("/user/:userId/app/" + application.getUniqueName() + "/callback", (req, res) -> {
+//                UUID uuid = null;
+//                try {
+//
+//                    if (req.params(":userId") == null) throw new RequestException();
+//
+//                    try {
+//                        uuid = UUID.fromString(req.params(":userId"));
+//                    } catch (IllegalArgumentException e) {
+//                        throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
+//                    }
+//
+//                    //If the user has not been registered to the database, we dont want to do anything else.
+//                    if (plugin.getDatabase().getUserId(uuid) == -1)
+//                        throw new RequestException("Authorization Error: User has not been registered.", UNAUTHORIZED);
+//
+//                    //If the session map does not contain the given UUID, dont allow this to be called
+//                    if (!verificationMap.containsKey(uuid))
+//                        throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+//
+//                    AuthSession session = verificationMap.get(uuid);
+//
+//                    //If the user has timed their session out, the session must be removed from the session map.
+//                    if ((System.currentTimeMillis() - session.getSessionStart()) > 1000*60*10) {
+//                        verificationMap.remove(uuid);
+//                        throw new RequestException("Timeout: You have exceeded the session timeout limit.", FORBIDDEN);
+//                    }
+//
+//                    //If the user is trying to join from another location than what their auth session remembered, they will not be allowed to do this
+//                    if (!session.getIpAddress().equals(req.ip()) || !session.isAuthorized())
+//                        throw new RequestException("Authorization Error: You are not authorized to do that.", UNAUTHORIZED);
+//
+//                    //If the user does not have an auth token at this point, they have likely not been verified yet. Normally shouldn't happen.
+//                    if (session.getAuthToken() == null)
+//                        throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
+//
+//                    //
+//                    //NOTE: AUTH SESSION TOKEN SHOULD BE CHECKED BY THE IMPLEMENTING APPLICATION
+//                    //
+//                    return application.handleCallback(uuid, session);
+//                } catch (RequestException e) {
+//                    res.header("content-type", "application/json");
+//                    res.status(e.getStatus());
+//                    return createObject("message", e.getMessage(), "status", e.getStatus());
+//                } catch (Exception e) {
+//                    if (uuid != null) verificationMap.remove(uuid);
+//                    res.header("content-type", "application/json");
+//                    res.status(SERVER_ERROR);
+//                    res.redirect("/");
+//                    e.printStackTrace();
+//                    return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
+//                }
+//
+//            });
+//        });
     }
 
     /**
@@ -140,41 +356,54 @@ public class WebApplication {
         post("/authorize", "application/json", (req, res) -> {
             UUID uuid = null;
             try {
-                JsonElement body = new JsonParser().parse(req.body());
-
-                //We must be given a json object, if not, fail.
-                if (!body.isJsonObject()) throw new RequestException();
-                JsonObject obj = body.getAsJsonObject();
+                JsonObject body = parseBody(req);
 
                 //The json element must exist and it must be of primitive type.
-                if (!obj.has("authCode") || !obj.has("uuid") || !obj.get("authCode").isJsonPrimitive() || !obj.get("uuid").isJsonPrimitive()) throw new RequestException();
+                if (!body.has("authCode") || !body.has("uuid") || !body.get("authCode").isJsonPrimitive() || !body.get("uuid").isJsonPrimitive())
+                    throw new RequestException();
 
                 //Ensure the UUID provided is a valid UUID
                 try {
-                    uuid = UUID.fromString(obj.get("uuid").getAsString());
+                    uuid = UUID.fromString(body.get("uuid").getAsString());
                 } catch (IllegalArgumentException e) {
                     throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
                 }
 
                 //Verify the provided UUID has been validated.
-                if (!verificationMap.containsKey(uuid)) throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+                if (!verificationMap.containsKey(uuid))
+                    throw new RequestException("Authorization Error: Your UUID has not been verified.", UNAUTHORIZED);
+
                 AuthSession session = verificationMap.get(uuid);
 
-                if (session.getAuthToken() == null) throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
+                //If the user has timed their session out, the session must be removed from the session map.
+                if ((System.currentTimeMillis() - session.getSessionStart()) > 1000*60*10) {
+                    verificationMap.remove(uuid);
+                    throw new RequestException("Timeout: You have exceeded the session timeout limit.", FORBIDDEN);
+                }
 
-                if (session.isAuthorized()) throw new RequestException("Authorization Error: You must request a new AuthCode.", UNAUTHORIZED);
+                //If the user is trying to join from another location than what their auth session remembered or they are already authorized, they will not be allowed to do this
+                if (!session.getIpAddress().equals(req.ip()) || session.isAuthorized())
+                    throw new RequestException("Authorization Error: You are not authorized to do that.", UNAUTHORIZED);
 
-                if (!session.getAuthToken().equals(obj.get("authCode").getAsString())) throw new RequestException("Authorization Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
+                //If the user does not have an auth token at this point, they have likely not been verified yet. Normally shouldn't happen.
+                if (session.getAuthToken() == null)
+                    throw new RequestException("Authorization Error: You do not have an AuthCode.", UNAUTHORIZED);
 
+                //If the auth code provided in this does not match the provided auth code, they will not be allowed to do this.
+                if (!session.getAuthToken().equals(body.get("authCode").getAsString()))
+                    throw new RequestException("Authorization Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
 
+                //In all other cases, we want to redirect to /user/uuid?session=authtoken
+//                res.header("content-type", "application/json");
+//                res.status(OK);
+                session.setAuthorized(true);
+                plugin.getDatabase().createUser(uuid);
+//                res.redirect("/user/" + uuid + "?session=" + session.getAuthToken());
                 res.header("content-type", "application/json");
                 res.status(OK);
-                session.setAuthorized(true);
-                res.body(createObject("authCode", session.getAuthToken()).toString());
-                res.redirect("/user/" + uuid);
-
+                return createObject("call", "/user/" + uuid + "/applications?session=" + session.getAuthToken());
                 //this is where we would return the list of user services.
-                return createObject("message", "Success!11", "status", OK);
+//                return createObject("message", "Success!11", "status", OK);
 
                 //Otherwise, we want to fail, as the provided auth code didn't match our saved auth code.
             } catch (RequestException e) {
@@ -185,6 +414,7 @@ public class WebApplication {
                 if (uuid != null) verificationMap.remove(uuid);
                 res.header("content-type", "application/json");
                 res.status(SERVER_ERROR);
+                res.redirect("/");
                 e.printStackTrace();
                 return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
             }
@@ -217,18 +447,14 @@ public class WebApplication {
         post("/validate", "application/json", (req, res) -> {
             UUID uuid = null;
             try {
-                JsonElement body = new JsonParser().parse(req.body());
-
-                //We must be given a json object, if not, fail.
-                if (!body.isJsonObject()) throw new RequestException();
-                JsonObject obj = body.getAsJsonObject();
+                JsonObject body = parseBody(req);
 
                 //The json element must exist and it must be of primitive type.
-                if (!obj.has("uuid") || !obj.get("uuid").isJsonPrimitive()) throw new RequestException();
+                if (!body.has("uuid") || !body.get("uuid").isJsonPrimitive()) throw new RequestException();
 
                 //Ensure the UUID provided is a valid UUID
                 try {
-                    uuid = UUID.fromString(obj.get("uuid").getAsString());
+                    uuid = UUID.fromString(body.get("uuid").getAsString());
                 } catch (IllegalArgumentException e) {
                     throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
                 }
@@ -238,7 +464,7 @@ public class WebApplication {
 
                 res.header("content-type", "application/json");
                 res.status(OK);
-                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid));
+                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid, req.ip()));
                 return createObject("message", "Success! Please provide your authorization code next.", "status", OK);
             } catch (RequestException e) {
                 if (uuid != null) verificationMap.remove(uuid);
@@ -249,31 +475,11 @@ public class WebApplication {
                 if (uuid != null) verificationMap.remove(uuid);
                 res.header("content-type", "application/json");
                 res.status(SERVER_ERROR);
+                res.redirect("/");
                 e.printStackTrace();
                 return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
             }
         });
-    }
-
-    public JsonObject createObject(Object... values) {
-        if (values.length % 2 != 0) throw new RuntimeException("Error creating json object. (key value mismatch)");
-        JsonObject obj = new JsonObject();
-        for (int i = 0; i < values.length; i+=2) {
-            String key = values[i].toString();//this really SHOULD be a string- im going to treat it that way.
-            Object value = values[i + 1];
-            if (value instanceof String s) {
-                obj.addProperty(key, s);
-            } else if (value instanceof Boolean b) {
-                obj.addProperty(key, b);
-            } else if (value instanceof Number n) {
-                obj.addProperty(key, n);
-            } else if (value instanceof Character c) {
-                obj.addProperty(key, c);
-            } else {
-                obj.addProperty(key, value.toString());
-            }
-        }
-        return obj;
     }
 
     /**
