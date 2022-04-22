@@ -12,6 +12,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
 
+import java.util.List;
 import java.util.UUID;
 
 import static net.md_5.bungee.api.chat.ClickEvent.Action.COPY_TO_CLIPBOARD;
@@ -97,8 +98,8 @@ public class AuthenticationHubCommand extends BukkitCommand {
 
         //If the session is authorized, ask the user if they want to reset their session instead.
         if (session.isAuthorized()) {
-            var message = builder.append("Your session is already authorized. Would you like to reset your session?").color(ChatColor.DARK_AQUA)
-                    .append("[Reset]").color(ChatColor.RESET).underlined(true)
+            var message = builder.append("Your session is already authorized. Would you like to reset your session? ").color(ChatColor.DARK_AQUA)
+                    .append("[Reset]").color(ChatColor.RESET).underlined(true).bold(true)
                     .event(new ClickEvent(RUN_COMMAND, "/authhub reset"))
                     .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Reset session").color(ChatColor.GRAY).create())))
                     .create();
@@ -117,5 +118,12 @@ public class AuthenticationHubCommand extends BukkitCommand {
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append(session.getAuthToken()).color(ChatColor.GRAY).create()))).create();
         ((Player) sender).spigot().sendMessage(message);
         return true;
+    }
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        if (args.length == 0) return List.of("reset");
+        if (args[0].equalsIgnoreCase("reset") && sender.hasPermission("authhub.reset-other")) return webApp.getActiveSessionIds().stream().map(UUID::toString).toList();
+        return List.of();
     }
 }

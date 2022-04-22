@@ -1,24 +1,28 @@
 package com.njdaeger.authenticationhub;
 
+import com.njdaeger.authenticationhub.database.ISavedResponse;
 import com.njdaeger.authenticationhub.database.IDatabase;
+import com.njdaeger.authenticationhub.database.SaveData;
 import com.njdaeger.authenticationhub.web.AuthSession;
 import com.njdaeger.authenticationhub.web.RequestException;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import spark.Request;
-import spark.Route;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 /**
  * Represents an application that can be authorized and connected to a Minecraft account.
  */
-public abstract class Application<T> {
+public abstract class Application<T extends ISavedResponse> {
 
-    IDatabase database;
+    protected IDatabase database;
     protected File appConfigFile;
     private Configuration appConfig;
     protected Boolean canBeLoaded = null;
@@ -67,11 +71,24 @@ public abstract class Application<T> {
     public abstract void handleCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException;
 
     public boolean hasConnection(UUID user) {
-        return database.getUserToken(this, user) != null;
+        return database.getUserConnections(user).contains(database.getApplicationId(this));
     }
 
-    public T getConnection(UUID user) {
-        return null;//todo make a rowtransformer thing T that transforms a database result into something useful for this application
+    public abstract T getConnection(UUID user);
+
+    public abstract Class<T> getSavedDataClass();
+
+    public List<String> getSavedDataFieldNames() {
+        var fields = Arrays.stream(getSavedDataClass().getDeclaredFields()).filter(field -> field.isAnnotationPresent(SaveData.class)).toList();
+        return fields.stream().map(field -> {
+            var annotation = field.getAnnotation(SaveData.class);
+            return annotation.fieldName().isEmpty() ? field.getName() : annotation.fieldName();
+        }).toList();
+    }
+
+    public List<? extends Class<?>> getSavedDataFieldTypes() {
+        var fields = Arrays.stream(getSavedDataClass().getDeclaredFields()).filter(field -> field.isAnnotationPresent(SaveData.class)).toList();
+        return fields.stream().map(Field::getType).toList();
     }
 
     /**

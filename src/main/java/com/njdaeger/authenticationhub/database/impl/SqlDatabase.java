@@ -3,6 +3,7 @@ package com.njdaeger.authenticationhub.database.impl;
 import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.AuthenticationHub;
 import com.njdaeger.authenticationhub.database.IDatabase;
+import com.njdaeger.authenticationhub.database.ISavedResponse;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,7 +32,7 @@ public class SqlDatabase implements IDatabase {
     }
 
     @Override
-    public int createUser(UUID userId) {
+    public int saveUser(UUID userId) {
         return 0;
     }
 
@@ -41,17 +42,17 @@ public class SqlDatabase implements IDatabase {
     }
 
     @Override
-    public List<String> getUserConnections(UUID userId) {
+    public List<Integer> getUserConnections(UUID userId) {
         return null;
     }
 
     @Override
-    public void createUserConnection(Application application, UUID uuid, String token) {
+    public <T extends ISavedResponse> void saveUserConnection(Application<T> application, UUID uuid, T response) {
 
     }
 
     @Override
-    public String getUserToken(Application application, UUID uuid) {
+    public <T extends ISavedResponse> T getUserConnection(Application<T> application, UUID uuid) {
         return null;
     }
 

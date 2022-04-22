@@ -18,16 +18,15 @@ public interface IDatabase {
 
     int getApplicationId(Application application);
 
-    int createUser(UUID userId);
+    int saveUser(UUID userId);
 
     int getUserId(UUID userId);
 
-    List<String> getUserConnections(UUID userId);
+    List<Integer> getUserConnections(UUID userId);
 
-    void createUserConnection(Application application, UUID uuid, String token);
+    <T extends ISavedResponse> void saveUserConnection(Application<T> application, UUID uuid, T response);
 
-    //todo perhaps this needs to return a generic type T where each application can specify what exactly it stores- T would extend a rowtransformer of some sort that takes the queried row from the application's database and converts it to a useable object.
-    String getUserToken(Application application, UUID uuid);
+    <T extends ISavedResponse> T getUserConnection(Application<T> application, UUID uuid);
 
     boolean removeUserToken(Application application, UUID uuid);
 

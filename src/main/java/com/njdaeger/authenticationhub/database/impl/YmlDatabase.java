@@ -2,11 +2,15 @@ package com.njdaeger.authenticationhub.database.impl;
 
 import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.AuthenticationHub;
+import com.njdaeger.authenticationhub.database.ISavedResponse;
 import com.njdaeger.authenticationhub.database.IDatabase;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,7 +35,9 @@ public class YmlDatabase implements IDatabase {
             - app_id3
 
     app_id_user_connections:
-        user_id: token
+        user_id:
+            app_defined_key: app value
+            app_defined_key2: app value
 
 
      */
@@ -80,7 +86,7 @@ public class YmlDatabase implements IDatabase {
     }
 
     @Override
-    public int createUser(UUID userId) {
+    public int saveUser(UUID userId) {
         int id = 0;
         var section = database.getConfigurationSection("users");
         if (section != null) {
@@ -104,29 +110,60 @@ public class YmlDatabase implements IDatabase {
     }
 
     @Override
-    public List<String> getUserConnections(UUID userId) {
+    public List<Integer> getUserConnections(UUID userId) {
         var id = getUserId(userId);
         if (id == -1) throw new RuntimeException("User " + userId + " does not exist.");
-        return database.getStringList("user_connections." + id);
+        return database.getIntegerList("user_connections." + id);
     }
 
     @Override
-    public void createUserConnection(Application application, UUID uuid, String token) {
+    public <T extends ISavedResponse> void saveUserConnection(Application<T> application, UUID uuid, T response) {
         var appId = getApplicationId(application);
         if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " does not exist.");
         var userId = getUserId(uuid);
         if (userId == -1) throw new RuntimeException("User " + uuid + " does not exist.");
-        database.set(appId + "_user_connections." + userId, token);
+        var connections = database.getIntegerList("user_connections." + userId);
+        if (!connections.contains(appId)) {
+            connections.add(appId);
+            database.set("user_connections." + userId, connections);
+        }
+        database.createSection(appId + "_user_connections." + userId, response.getSavedDataMap());
+//        database.set(appId + "_user_connections." + userId, token);
     }
 
     @Override
-    public String getUserToken(Application application, UUID uuid) {
+    public <T extends ISavedResponse> T getUserConnection(Application<T> application, UUID uuid) {
         var appId = getApplicationId(application);
         if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " does not exist.");
         var userId = getUserId(uuid);
         if (userId == -1) throw new RuntimeException("User " + uuid + " does not exist.");
-        return database.getString(appId + "_user_connections." + userId);
+        var userSection = database.getConfigurationSection(appId + "_user_connections." + userId);
+        if (userSection == null) throw new RuntimeException("User " + uuid + " does not have a connection with " + application.getUniqueName());
+
+        var savedDataCls = application.getSavedDataClass();
+        var fields = application.getSavedDataFieldNames();
+        var fieldTypes = application.getSavedDataFieldTypes();
+        Constructor<T> ctor = null;
+
+        try {
+            ctor = savedDataCls.getDeclaredConstructor(fieldTypes.toArray(new Class<?>[0]));
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        }
+
+        if (ctor == null) throw new RuntimeException(savedDataCls.getName() + " does not have a connection with " + application.getUniqueName());
+
+        var args = new ArrayList<>();
+        fields.forEach(field -> args.add(userSection.get(field)));
+        try {
+            return ctor.newInstance(args.toArray(new Object[0]));
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        throw new RuntimeException("Unable to create User Connection Instance. Fields: " + fields);
     }
+
+
 
     @Override
     public boolean removeUserToken(Application application, UUID uuid) {

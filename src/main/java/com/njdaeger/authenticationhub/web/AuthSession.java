@@ -49,7 +49,7 @@ public final class AuthSession {
     }
 
     public String getEncodedState(Application application) {
-        return Base64.getUrlEncoder().encodeToString((application.getUniqueName() + "|" + userId + "|" + authToken).getBytes());
+        return Base64.getUrlEncoder().encodeToString((ip + "|" + userId + "|" + authToken + (application == null ? "" : ("|" + application.getUniqueName()))).getBytes());
     }
 
 }
