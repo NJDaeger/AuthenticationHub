@@ -33,6 +33,19 @@ public class AuthenticationHubConfig {
     }
 
     /**
+     * Get the amount of time an AuthSession is authorized for in milliseconds.
+     * @return The amount of time the Auth Session is authorized for.
+     */
+    public long getSessionTimeoutMilliseconds() {
+        long timeoutSeconds = config.getLong("session-timeout");
+        if (timeoutSeconds < 60) {
+            timeoutSeconds = 600; //If the user sets this to less than 1 minute, im going to assume they probably dont know what they are doing, or they didnt read the comment.
+            plugin.getLogger().warning("The value for \"session-timeout\" could either not be parsed, or is less than 60. Defaulting to 10 minutes.");
+        }
+        return timeoutSeconds * 1000;
+    }
+
+    /**
      * Gets the URL that opens the hub webpage.
      * @return The hub url
      */

@@ -1,22 +1,22 @@
 package com.njdaeger.authenticationhub.patreon;
 
-import com.njdaeger.authenticationhub.database.ISavedResponse;
+import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.SaveData;
 
-public class PatreonUser implements ISavedResponse {
+public class PatreonUser implements ISavedConnection {
 
     @SaveData
-    private String refreshToken;
+    private final String refreshToken;
     @SaveData
-    private String accessToken;
+    private final String accessToken;
     @SaveData
-    private long expiration;
+    private final long expiration;
     @SaveData
-    private String tokenType;
+    private final String tokenType;
     @SaveData
-    private String scope;
+    private final String scope;
 
-    public PatreonUser(@SaveData String refreshToken, @SaveData String accessToken, @SaveData long expiration, @SaveData String tokenType, @SaveData String scope) {
+    public PatreonUser(String refreshToken, String accessToken, long expiration, String tokenType, String scope) {
         this.refreshToken = refreshToken;
         this.accessToken = accessToken;
         this.expiration = expiration;

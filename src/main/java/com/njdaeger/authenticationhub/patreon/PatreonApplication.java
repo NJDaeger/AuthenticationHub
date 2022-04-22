@@ -1,6 +1,5 @@
 package com.njdaeger.authenticationhub.patreon;
 
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.web.AuthSession;
@@ -8,9 +7,7 @@ import com.njdaeger.authenticationhub.web.RequestException;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.yaml.snakeyaml.Yaml;
 import spark.Request;
-import spark.Route;
 
 import java.io.IOException;
 import java.net.URI;
@@ -19,8 +16,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.UUID;
-
-import static com.njdaeger.authenticationhub.web.WebUtils.*;
 
 public class PatreonApplication extends Application<PatreonUser> {
 
@@ -85,8 +80,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         var body = new JsonParser().parse(response.body()).getAsJsonObject();
-        database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expiration").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString()));
-        System.out.println(response.body());
+        database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString()));
     }
 
     @Override
@@ -97,7 +91,6 @@ public class PatreonApplication extends Application<PatreonUser> {
     @Override
     public PatreonUser getConnection(UUID user) {
         if (!hasConnection(user)) return null;
-
-        return null;
+        return database.getUserConnection(this, user);
     }
 }

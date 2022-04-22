@@ -1,6 +1,6 @@
 package com.njdaeger.authenticationhub;
 
-import com.njdaeger.authenticationhub.database.ISavedResponse;
+import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.IDatabase;
 import com.njdaeger.authenticationhub.database.SaveData;
 import com.njdaeger.authenticationhub.web.AuthSession;
@@ -20,7 +20,7 @@ import java.util.logging.Logger;
 /**
  * Represents an application that can be authorized and connected to a Minecraft account.
  */
-public abstract class Application<T extends ISavedResponse> {
+public abstract class Application<T extends ISavedConnection> {
 
     protected IDatabase database;
     protected File appConfigFile;

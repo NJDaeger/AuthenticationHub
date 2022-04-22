@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
  * Represents a field that is saved into an application's database.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.PARAMETER, ElementType.FIELD})
+@Target({ElementType.FIELD})
 public @interface SaveData {
 
     /**

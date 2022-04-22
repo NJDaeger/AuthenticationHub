@@ -33,7 +33,7 @@ public class StorageHandler<D extends IDatabase> {
     }
 
     public static StorageHandler<?> getStorageHandler(String databaseName) {
-        return switch (databaseName) {
+        return switch (databaseName.toUpperCase()) {
             case "SQL" -> SQL;
             case "YML" -> YML;
             default -> null;

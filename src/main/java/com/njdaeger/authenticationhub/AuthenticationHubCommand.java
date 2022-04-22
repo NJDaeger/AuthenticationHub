@@ -110,11 +110,11 @@ public class AuthenticationHubCommand extends BukkitCommand {
         //Otherwise, we are just generating a new token.
         session.setAuthToken(RandomStringUtils.random(10, true, true));
         var message = builder.append("New authentication token generated! ").color(ChatColor.DARK_AQUA)
-                .append("[Click to Copy]")
+                .append("[Click to Copy]").underlined(true).bold(true)
                 .event(new ClickEvent(COPY_TO_CLIPBOARD, session.getAuthToken()))
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Copy your auth token").color(ChatColor.GRAY).create())))
                 .append(" or ")
-                .append("[Hover to View]")
+                .append("[Hover to View]").underlined(true).bold(true)
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append(session.getAuthToken()).color(ChatColor.GRAY).create()))).create();
         ((Player) sender).spigot().sendMessage(message);
         return true;
@@ -122,8 +122,8 @@ public class AuthenticationHubCommand extends BukkitCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
-        if (args.length == 0) return List.of("reset");
-        if (args[0].equalsIgnoreCase("reset") && sender.hasPermission("authhub.reset-other")) return webApp.getActiveSessionIds().stream().map(UUID::toString).toList();
+        if (args.length == 1) return List.of("reset");
+        if (args[0].equalsIgnoreCase("reset") && sender.hasPermission("authhub.reset-other") && args.length == 2) return webApp.getActiveSessionIds().stream().map(UUID::toString).toList();
         return List.of();
     }
 }

@@ -2,7 +2,7 @@ package com.njdaeger.authenticationhub.database.impl;
 
 import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.AuthenticationHub;
-import com.njdaeger.authenticationhub.database.ISavedResponse;
+import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.IDatabase;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -62,18 +62,23 @@ public class YmlDatabase implements IDatabase {
     }
 
     @Override
-    public int createApplication(Application application) {
+    public int createApplication(Application<?> application) {
         int id = 0;
         var section = database.getConfigurationSection("applications");
+
         if (section != null) {
-            id = section.getKeys(false).stream().map(Integer::parseInt).mapToInt(i -> i).max().orElse(0) + 1;
+            for (Map.Entry<String, Object> entry : section.getValues(false).entrySet()) {
+                Object value = entry.getValue();
+                if (value.equals(application.getUniqueName())) return Integer.parseInt(entry.getKey());
+                id++;
+            }
         }
         database.set("applications." + id, application.getUniqueName());
         return id;
     }
 
     @Override
-    public int getApplicationId(Application application) {
+    public int getApplicationId(Application<?> application) {
         var section = database.getConfigurationSection("applications");
         if (section != null) {
             for (Map.Entry<String, Object> entry : section.getValues(false).entrySet()) {
@@ -86,11 +91,15 @@ public class YmlDatabase implements IDatabase {
     }
 
     @Override
-    public int saveUser(UUID userId) {
+    public int createUser(UUID userId) {
         int id = 0;
         var section = database.getConfigurationSection("users");
         if (section != null) {
-            id = section.getKeys(false).stream().map(Integer::parseInt).mapToInt(i -> i).max().orElse(0) + 1;
+            for (Map.Entry<String, Object> entry : section.getValues(false).entrySet()) {
+                Object value = entry.getValue();
+                if (value.equals(userId.toString())) return Integer.parseInt(entry.getKey());
+                id++;
+            }
         }
         database.set("users." + id, userId.toString());
         return id;
@@ -112,31 +121,30 @@ public class YmlDatabase implements IDatabase {
     @Override
     public List<Integer> getUserConnections(UUID userId) {
         var id = getUserId(userId);
-        if (id == -1) throw new RuntimeException("User " + userId + " does not exist.");
+        if (id == -1) throw new RuntimeException("User " + userId + " is not registered.");
         return database.getIntegerList("user_connections." + id);
     }
 
     @Override
-    public <T extends ISavedResponse> void saveUserConnection(Application<T> application, UUID uuid, T response) {
+    public <T extends ISavedConnection> void saveUserConnection(Application<T> application, UUID uuid, T response) {
         var appId = getApplicationId(application);
-        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " does not exist.");
+        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered.");
         var userId = getUserId(uuid);
-        if (userId == -1) throw new RuntimeException("User " + uuid + " does not exist.");
+        if (userId == -1) throw new RuntimeException("User " + uuid + " is not registered.");
         var connections = database.getIntegerList("user_connections." + userId);
         if (!connections.contains(appId)) {
             connections.add(appId);
             database.set("user_connections." + userId, connections);
         }
         database.createSection(appId + "_user_connections." + userId, response.getSavedDataMap());
-//        database.set(appId + "_user_connections." + userId, token);
     }
 
     @Override
-    public <T extends ISavedResponse> T getUserConnection(Application<T> application, UUID uuid) {
+    public <T extends ISavedConnection> T getUserConnection(Application<T> application, UUID uuid) {
         var appId = getApplicationId(application);
-        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " does not exist.");
+        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered.");
         var userId = getUserId(uuid);
-        if (userId == -1) throw new RuntimeException("User " + uuid + " does not exist.");
+        if (userId == -1) throw new RuntimeException("User " + uuid + " is not registered.");
         var userSection = database.getConfigurationSection(appId + "_user_connections." + userId);
         if (userSection == null) throw new RuntimeException("User " + uuid + " does not have a connection with " + application.getUniqueName());
 
@@ -147,6 +155,7 @@ public class YmlDatabase implements IDatabase {
 
         try {
             ctor = savedDataCls.getDeclaredConstructor(fieldTypes.toArray(new Class<?>[0]));
+            ctor.setAccessible(true);
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         }
@@ -163,11 +172,16 @@ public class YmlDatabase implements IDatabase {
         throw new RuntimeException("Unable to create User Connection Instance. Fields: " + fields);
     }
 
-
-
     @Override
-    public boolean removeUserToken(Application application, UUID uuid) {
-        return false;
+    public boolean removeUserConnection(Application<?> application, UUID uuid) {
+        var appId = getApplicationId(application);
+        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered.");
+        var userId = getUserId(uuid);
+        if (userId == -1) throw new RuntimeException("User " + uuid + " is not registered.");
+        var userSection = database.getConfigurationSection(appId + "_user_connections." + userId);
+        if (userSection == null) return false;
+        else database.set(appId + "_user_connections." + userId, null);
+        return true;
     }
 
     @Override

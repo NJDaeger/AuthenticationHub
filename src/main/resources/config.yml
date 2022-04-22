@@ -5,6 +5,12 @@
 #
 storage-handler: yml
 
+#
+# Auth Sessions should time out for security purposes. Please specify how many seconds should pass before the session is timed out.
+# Default is 10 minutes.
+#
+session-timeout: 600
+
 # The URL where the Authentication Hub is located for your server.
 hub-url: http://localhost:4567
 

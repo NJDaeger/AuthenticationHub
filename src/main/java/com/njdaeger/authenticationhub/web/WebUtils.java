@@ -5,23 +5,46 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import spark.Request;
 
+/**
+ * Web utilities
+ */
 public final class WebUtils {
 
     private WebUtils() {
     }
 
+    /**
+     * OK Response code
+     */
     public static final int OK = 200;
+    /**
+     * BAD REQUEST response code
+     */
     public static final int BAD_REQUEST = 400;
+    /**
+     * UNAUTHORIZED response code
+     */
     public static final int UNAUTHORIZED = 401;
+    /**
+     * FORBIDDEN response code
+     */
     public static final int FORBIDDEN = 403;
+    /**
+     * SERVER ERROR response code
+     */
     public static final int SERVER_ERROR = 500;
 
-    public static JsonObject createObject(Object... values) {
-        if (values.length % 2 != 0) throw new RuntimeException("Error creating json object. (key value mismatch)");
+    /**
+     * Create a Json object with every odd value in the provided array being a key and every even value in the array being a value
+     * @param keyValues The array of keys and values that comprise this Json Object
+     * @return The generated Json Object.
+     */
+    public static JsonObject createObject(Object... keyValues) {
+        if (keyValues.length % 2 != 0) throw new RuntimeException("Error creating json object. (key value mismatch)");
         JsonObject obj = new JsonObject();
-        for (int i = 0; i < values.length; i+=2) {
-            String key = values[i].toString();//this really SHOULD be a string- im going to treat it that way.
-            Object value = values[i + 1];
+        for (int i = 0; i < keyValues.length; i+=2) {
+            String key = keyValues[i].toString();//this really SHOULD be a string- im going to treat it that way.
+            Object value = keyValues[i + 1];
             if (value instanceof String s) {
                 obj.addProperty(key, s);
             } else if (value instanceof Boolean b) {

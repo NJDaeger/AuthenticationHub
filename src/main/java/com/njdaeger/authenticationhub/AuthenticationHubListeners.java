@@ -21,9 +21,14 @@ public class AuthenticationHubListeners implements Listener {
     public void onLogin(PlayerLoginEvent e) {
         if (e.getResult() != PlayerLoginEvent.Result.ALLOWED) {
             AuthSession session = webApp.getAuthSession(e.getPlayer().getUniqueId());
-            if (session != null && !session.isAuthorized()) {
-                session.setAuthToken(RandomStringUtils.random(10, true, true));
-                e.setKickMessage("Your current auth code is: " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getAuthToken());
+            if (session != null) {
+                if (session.isAuthorized()) {
+                    if (session.getTimeRemaining() <= 0) webApp.removeSession(e.getPlayer().getUniqueId());
+                    else e.setKickMessage("Your current session is active. If you wish to restart your session, please wait " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getNiceTimeRemaining() + ChatColor.RESET + ". Or, contact a server administrator to manually reset your session.");
+                } else {
+                    session.setAuthToken(RandomStringUtils.random(10, true, true));
+                    e.setKickMessage("Your current auth code is: " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getAuthToken());
+                }
             }
         }
     }

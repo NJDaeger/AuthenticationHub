@@ -38,8 +38,7 @@ public class WebApplication {
         this.registry = registry;
         this.index = new File(plugin.getDataFolder() + File.separator + "web" + File.separator + "index.html");
         plugin.getLogger().info("Initializing webserver");
-
-        BasicConfigurator.configure();
+//        BasicConfigurator.configure();
         BasicConfigurator.configure();
         try {
 
@@ -50,8 +49,6 @@ public class WebApplication {
             e.printStackTrace();
         }
 
-        /*Logger.getRootLogger().*/
-
         staticFiles.externalLocation(index.getParentFile().getAbsolutePath());
         this.webService = ignite();
 
@@ -60,6 +57,7 @@ public class WebApplication {
             e.printStackTrace();
         });
 
+        //Initialize endpoints
         index();
         postValidate();
         getInfo();
@@ -72,6 +70,12 @@ public class WebApplication {
         return webService;
     }
 
+    /**
+     * Gets the state query parameter from a Request and deserializes it.
+     * @param req The request that contains the state parameter.
+     * @return The DeserializedState object.
+     * @throws RequestException If the user is not authorized for an action, if the state was missing, or if the state was not formatted properly.
+     */
     private DeserializedState getState(Request req) throws RequestException {
         if (req.queryParamsSafe("state") == null) throw new RequestException();
 
@@ -99,6 +103,12 @@ public class WebApplication {
         return new DeserializedState(app, ip, uuid, authCode);
     }
 
+    /**
+     * Gets an AuthSession and checks whether the auth session exists or if they have timed out.
+     * @param uuid The UUID of the user to get the AuthSession of.
+     * @return The AuthSession the given UUID corresponds to.
+     * @throws RequestException If the UUID has not been verified or if the session has passed its timeout time.
+     */
     private AuthSession getAuthSessionSafe(UUID uuid) throws RequestException {
 
         //If the session map does not contain the given UUID, dont allow this to be called
@@ -116,13 +126,16 @@ public class WebApplication {
         return session;
     }
 
+    /**
+     * Index
+     */
     public void index() {
         get("/", (req, res) -> Files.readString(index.toPath()));
     }
+
     /**
-     * When the user first loads the webpage, the webpage needs to.
-     *
-     * No parameters
+     * TODO:
+     * Endpoint to provide basic server information to the index webpage when loaded.
      */
     public void getInfo() {
         get("/info", (req, res) -> {
@@ -137,6 +150,9 @@ public class WebApplication {
         });
     }
 
+    /**
+     * Endpoint that gets a list of applications the user can register with
+     */
     public void getApplications() {
         get("/applications", (req, res) -> {
             try {
@@ -268,7 +284,7 @@ public class WebApplication {
                     throw new RequestException("Session Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
 
                 session.setAuthorized(true);
-                plugin.getDatabase().saveUser(uuid);
+                plugin.getDatabase().createUser(uuid);
                 res.status(OK);
                 res.header("content-type", "application/json");
                 return createObject("call", "/applications?state=" + session.getEncodedState(null));
@@ -314,7 +330,7 @@ public class WebApplication {
 
                 res.header("content-type", "application/json");
                 res.status(OK);
-                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid, req.ip()));
+                if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid, req.ip(), plugin));
                 return createObject("message", "Success! Please provide your authorization code next.", "status", OK);
             } catch (RequestException e) {
                 if (uuid != null) verificationMap.remove(uuid);
