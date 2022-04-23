@@ -12,7 +12,10 @@ storage-handler: yml
 session-timeout: 600
 
 # The URL where the Authentication Hub is located for your server.
-hub-url: http://localhost:4567
+hub-url: http://127.0.0.1:4567/
+
+# Your server IP
+server-ip: "localhost:25565"
 
 #
 # SQL connection for storing connection and user data. Note: this is only able to be used when using the "sql" storage type

@@ -55,7 +55,7 @@ public final class AuthSession {
      */
     public String getNiceTimeRemaining() {
         var ms = getTimeRemaining();
-        return String.format("%d:%02d:%02d", ms / 3600, (ms % 3600) / 60, (ms % 60));
+        return String.format("%d:%02d:%02d", ms / 3600000, (ms % 3600000) / 60000, ((ms % 3600000) % 60000) / 1000);
     }
 
     public UUID getUserId() {

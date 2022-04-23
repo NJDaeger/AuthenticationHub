@@ -61,7 +61,7 @@ public class PatreonApplication extends Application<PatreonUser> {
         return "www.patreon.com/oauth2/authorize" +
                 "?response_type=code" +
                 "&client_id=" + clientId +
-                "&redirect_uri=" + URLEncoder.encode("http://127.0.0.1:4567/callback") +
+                "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback") +
                 "&state=" + session.getEncodedState(this);
     }
 
@@ -72,7 +72,7 @@ public class PatreonApplication extends Application<PatreonUser> {
         if (code == null || state == null) throw new RequestException("App Error: Patreon response was not in the correct format.");
 
         HttpClient client = HttpClient.newHttpClient();
-        String reqBody = "?code=" + code + "&grant_type=authorization_code&client_id=" + clientId + "&client_secret=" + clientSecret + "&redirect_uri=" + URLEncoder.encode("http://127.0.0.1:4567/callback");
+        String reqBody = "?code=" + code + "&grant_type=authorization_code&client_id=" + clientId + "&client_secret=" + clientSecret + "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback");
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://www.patreon.com/api/oauth2/token" + reqBody))
                 .POST(HttpRequest.BodyPublishers.ofString(""))

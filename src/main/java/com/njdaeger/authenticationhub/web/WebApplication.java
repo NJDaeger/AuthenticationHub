@@ -66,66 +66,6 @@ public class WebApplication {
         getApplications();
     }
 
-    public Service getWebService() {
-        return webService;
-    }
-
-    /**
-     * Gets the state query parameter from a Request and deserializes it.
-     * @param req The request that contains the state parameter.
-     * @return The DeserializedState object.
-     * @throws RequestException If the user is not authorized for an action, if the state was missing, or if the state was not formatted properly.
-     */
-    private DeserializedState getState(Request req) throws RequestException {
-        if (req.queryParamsSafe("state") == null) throw new RequestException();
-
-
-        String[] result;
-        try {
-            result = new String(Base64.getUrlDecoder().decode(req.queryParamsSafe("state").getBytes())).split("\\|");
-        } catch (IllegalArgumentException e) {
-            throw new RequestException();
-        }
-
-        UUID uuid;
-        String app = null;
-        var ip = result[0];
-        var userId = result[1];
-        var authCode = result[2];
-        if (result.length > 3) app = result[3];
-
-        try {
-            uuid = UUID.fromString(userId);
-        } catch (IllegalArgumentException e) {
-            throw new RequestException("Session Error: Bad UUID format.");
-        }
-
-        return new DeserializedState(app, ip, uuid, authCode);
-    }
-
-    /**
-     * Gets an AuthSession and checks whether the auth session exists or if they have timed out.
-     * @param uuid The UUID of the user to get the AuthSession of.
-     * @return The AuthSession the given UUID corresponds to.
-     * @throws RequestException If the UUID has not been verified or if the session has passed its timeout time.
-     */
-    private AuthSession getAuthSessionSafe(UUID uuid) throws RequestException {
-
-        //If the session map does not contain the given UUID, dont allow this to be called
-        if (!verificationMap.containsKey(uuid))
-            throw new RequestException("Session Error: Your UUID has not been verified.", UNAUTHORIZED);
-
-        AuthSession session = verificationMap.get(uuid);
-
-        //If the user has timed their session out, the session must be removed from the session map.
-        if ((System.currentTimeMillis() - session.getSessionStart()) > 1000*60*10) {//TODO: Adjustable timeout
-            verificationMap.remove(uuid);
-            throw new RequestException("Session Error: You have exceeded the session timeout limit.", FORBIDDEN);
-        }
-
-        return session;
-    }
-
     /**
      * Index
      */
@@ -134,20 +74,10 @@ public class WebApplication {
     }
 
     /**
-     * TODO:
      * Endpoint to provide basic server information to the index webpage when loaded.
      */
     public void getInfo() {
-        get("/info", (req, res) -> {
-            JsonObject obj = createObject("auth-server-ip", "play.greenfieldmc.net");
-            JsonArray appArray = new JsonArray();
-            JsonObject patreonObj = new JsonObject();
-            patreonObj.addProperty("name", "Patreon");
-            patreonObj.addProperty("route", "/patreon");
-            appArray.add(patreonObj);
-            obj.add("apps", appArray);
-            return obj;
-        });
+        get("/info", (req, res) -> createObject("auth_server_ip", config.getAuthServerIp()));
     }
 
     /**
@@ -156,7 +86,6 @@ public class WebApplication {
     public void getApplications() {
         get("/applications", (req, res) -> {
             try {
-
                 var state = getState(req);
 
                 //If the user has not been registered to the database, we dont want to do anything else.
@@ -178,7 +107,7 @@ public class WebApplication {
                     throw new RequestException("Session Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
 
                 var result = new JsonArray();
-                registry.getApplications().forEach(application -> result.add(createObject("name", application.getApplicationName(), "connected", application.hasConnection(state.uuid()), "connection", application.getConnectionUrl(session))));
+                registry.getApplications().forEach(application -> result.add(createObject("name", application.getApplicationName(), "connection", !application.hasConnection(state.uuid()) ? application.getConnectionUrl(session) : null)));
                 return createObject("apps", result);
             } catch (RequestException e) {
                 res.header("content-type", "application/json");
@@ -191,9 +120,6 @@ public class WebApplication {
                 e.printStackTrace();
                 return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
             }
-
-
-
         });
     }
 
@@ -287,7 +213,7 @@ public class WebApplication {
                 plugin.getDatabase().createUser(uuid);
                 res.status(OK);
                 res.header("content-type", "application/json");
-                return createObject("call", "/applications?state=" + session.getEncodedState(null));
+                return createObject("call", "/applications?state=" + session.getEncodedState(null), "message", "Authorized!", "status", OK);
             } catch (RequestException e) {
                 res.header("content-type", "application/json");
                 res.status(e.getStatus());
@@ -374,7 +300,67 @@ public class WebApplication {
         return verificationMap.keySet().stream().toList();
     }
 
-    public JsonElement readJsonFromUrl(String url) {
+    public Service getWebService() {
+        return webService;
+    }
+
+    /**
+     * Gets the state query parameter from a Request and deserializes it.
+     * @param req The request that contains the state parameter.
+     * @return The DeserializedState object.
+     * @throws RequestException If the user is not authorized for an action, if the state was missing, or if the state was not formatted properly.
+     */
+    private DeserializedState getState(Request req) throws RequestException {
+        if (req.queryParamsSafe("state") == null) throw new RequestException();
+
+
+        String[] result;
+        try {
+            result = new String(Base64.getUrlDecoder().decode(req.queryParamsSafe("state").getBytes())).split("\\|");
+        } catch (IllegalArgumentException e) {
+            throw new RequestException();
+        }
+
+        UUID uuid;
+        String app = null;
+        var ip = result[0];
+        var userId = result[1];
+        var authCode = result[2];
+        if (result.length > 3) app = result[3];
+
+        try {
+            uuid = UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            throw new RequestException("Session Error: Bad UUID format.");
+        }
+
+        return new DeserializedState(app, ip, uuid, authCode);
+    }
+
+    /**
+     * Gets an AuthSession and checks whether the auth session exists or if they have timed out.
+     * @param uuid The UUID of the user to get the AuthSession of.
+     * @return The AuthSession the given UUID corresponds to.
+     * @throws RequestException If the UUID has not been verified or if the session has passed its timeout time.
+     */
+    private AuthSession getAuthSessionSafe(UUID uuid) throws RequestException {
+
+        //If the session map does not contain the given UUID, dont allow this to be called
+        if (!verificationMap.containsKey(uuid))
+            throw new RequestException("Session Error: Your UUID has not been verified.", UNAUTHORIZED);
+
+        AuthSession session = verificationMap.get(uuid);
+
+        //If the user has timed their session out, the session must be removed from the session map.
+        if (session.getTimeRemaining() <=0 ) {
+            verificationMap.remove(uuid);
+            throw new RequestException("Session Error: You have exceeded the session timeout limit.", FORBIDDEN);
+        }
+
+        return session;
+    }
+
+    private JsonElement readJsonFromUrl(String url) {
         try (InputStream is = new URL(url).openStream()) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
             return new JsonParser().parse(reader);

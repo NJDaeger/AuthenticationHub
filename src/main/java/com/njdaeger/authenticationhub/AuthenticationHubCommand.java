@@ -22,12 +22,14 @@ import static net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT;
 public class AuthenticationHubCommand extends BukkitCommand {
 
     private final WebApplication webApp;
+    private final AuthenticationHub plugin;
 
-    protected AuthenticationHubCommand(WebApplication webApp) {
+    protected AuthenticationHubCommand(AuthenticationHub plugin, WebApplication webApp) {
         super("authhub");
         this.description = "Get the single-use authorization token for AuthenticationHub's Minecraft account authenticator.";
         this.usageMessage = "/authhub [reset] [uuid]";
         this.webApp = webApp;
+        this.plugin = plugin;
     }
 
     //
@@ -83,7 +85,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
 
         //If the given session is null, just fail gracefully
         if (session == null) {
-            var msg = player ? "You have not started a session yet." : "No web session has been started for that user.";
+            var msg = player ? "You have not started a session yet. Start one at " + ChatColor.UNDERLINE + plugin.getAuthHubConfig().getHubUrl() : "No web session has been started for that user.";
             sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + msg);
             return true;
         }

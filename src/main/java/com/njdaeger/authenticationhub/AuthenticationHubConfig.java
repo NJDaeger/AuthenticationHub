@@ -1,6 +1,7 @@
 package com.njdaeger.authenticationhub;
 
 import com.njdaeger.authenticationhub.database.StorageHandler;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -50,7 +51,22 @@ public class AuthenticationHubConfig {
      * @return The hub url
      */
     public String getHubUrl() {
-        return config.getString("hub-url", null);
+        var url = config.getString("hub-url");
+        if (url == null || url.isEmpty()) {
+            url = "http://127.0.0.1:" + getWebserverPort() + "/";
+            plugin.getLogger().warning("The value for \"hub-url\" could not be parsed. Defaulting to " + url);
+        }
+        if (!url.endsWith("/")) url += "/";//Ensure we keep trailing slash for consistency
+        return url;
+    }
+
+    public String getAuthServerIp() {
+        var ip = config.getString("server-ip");
+        if (ip == null || ip.isEmpty()) {
+            ip = "localhost:" + Bukkit.getServer().getPort();
+            plugin.getLogger().warning("The value for \"server-ip\" could not be parsed. Defaulting to " + ip);
+        }
+        return ip;
     }
 
     /**

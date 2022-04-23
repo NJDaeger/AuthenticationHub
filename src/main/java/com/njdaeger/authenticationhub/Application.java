@@ -25,6 +25,7 @@ public abstract class Application<T extends ISavedConnection> {
     protected IDatabase database;
     protected File appConfigFile;
     private Configuration appConfig;
+    protected AuthenticationHubConfig authHubConfig;
     protected Boolean canBeLoaded = null;
 
     public Application() {
@@ -38,6 +39,7 @@ public abstract class Application<T extends ISavedConnection> {
         if (canBeLoaded == null) {
             canBeLoaded = true;
             this.database = AuthenticationHub.getInstance().getDatabase();
+            this.authHubConfig = AuthenticationHub.getInstance().getAuthHubConfig();
             if (database.getApplicationId(this) == -1) database.createApplication(this);
             logger.info(getUniqueName() + " application initialization complete.");
         }
@@ -61,13 +63,24 @@ public abstract class Application<T extends ISavedConnection> {
     public abstract String getUniqueName();
 
     /**
-     * Function to call when the client connects to the {@link Application#getUniqueName()} route.
-     * This should handle any kind of calls needed for connecting a minecraft account to a given user.
+     * Get the URL the AuthSession should use when attempting to connect this application.
+     *
+     * This is used on the web interface as a link when the user clicks the application button
+     *
+     * @param session The AuthSession trying to connect to this application
+     * @return The connection URL
      */
-//    public abstract JsonObject connect(UUID userId) throws IOException, InterruptedException;
-
     public abstract String getConnectionUrl(AuthSession session);
 
+    /**
+     * What this application runs when processing a callback request specified in the connection URL above.
+     * @param req The request
+     * @param userId The UUID of the user whose request is being process
+     * @param session The AuthSession of the user whose request is being processed
+     * @throws RequestException If there was an error processing this request.
+     * @throws IOException
+     * @throws InterruptedException
+     */
     public abstract void handleCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException;
 
     public boolean hasConnection(UUID user) {

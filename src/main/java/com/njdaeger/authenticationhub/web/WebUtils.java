@@ -55,6 +55,8 @@ public final class WebUtils {
                 obj.addProperty(key, c);
             } else if (value instanceof JsonElement e) {
                 obj.add(key, e);
+            } else if (value == null) {
+                obj.addProperty(key, (String)null);
             } else {
                 obj.addProperty(key, value.toString());
             }

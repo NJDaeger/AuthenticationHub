@@ -47,7 +47,7 @@ public final class AuthenticationHub extends JavaPlugin {
             var commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
             commandMapField.setAccessible(true);
             var commandMap = (CommandMap) commandMapField.get(Bukkit.getServer());
-            commandMap.register("authhub", new AuthenticationHubCommand(webapp));
+            commandMap.register("authhub", new AuthenticationHubCommand(this, webapp));
         } catch (NoSuchFieldException | IllegalAccessException e) {
             e.printStackTrace();
         }
