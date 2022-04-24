@@ -1,0 +1,127 @@
+:root {
+    
+    /* primary page variables */
+    --regular-font-size: 2rem;
+    --card-header-font-size: 4rem;
+    --header-height: 30vh;
+
+    /* primary page colors */
+    --primary-font-color: #404040ff;
+    --primary-page-color: #0084ffff;
+
+    /* input box colors */
+    --input-border-color: #9f9f9fff;
+    --input-label-color: #9f9f9fff;
+    --input-background-color: #ffffffff;
+    --input-outline-color: #0084ff00;
+
+    --hover-input-border-color: #0084ffff;
+    --hover-input-label-color: #b1b1b1ff;
+    --hover-input-background-color: #ffffffff;
+    --hover-input-outline-color: #0084ff00;
+
+    --focus-input-border-color: #b1b1b1ff;
+    --focus-input-label-color: #b1b1b1ff;
+    --focus-input-background-color: #ffffffff;
+    --focus-input-outline-color: #0084ffff;
+
+    --disable-input-border-color: #e4e4e4ff;
+    --disable-input-label-color: #ccccccff;
+    --disable-input-background-color: #f8f8f8ff;
+    --disable-input-outline-color: #0084ff00;
+
+    /* button colors */
+    --button-border-color: #50a9fc00;
+    --button-background-color: #0084ffff;
+    --button-label-color: #ffffffff;
+    --button-outline-color: #50a9fc00;
+
+    --hover-button-border-color: #50a9fc00;
+    --hover-button-background-color: #50a9fcff;
+    --hover-button-label-color: #ffffffff;
+    --hover-button-outline-color: #50a9fc00;
+
+    --focus-button-border-color: #50a9fc00;
+    --focus-button-background-color: #0084ffff;
+    --focus-button-label-color: #ffffffff;
+    --focus-button-outline-color: #50a9fcff;
+
+    --disable-button-border-color: #76767600;
+    --disable-button-background-color: #767676ff;
+    --disable-button-label-color: #b1b1b1ff;
+    --disable-button-outline-color: #50a9fc00;
+}
+
+/*
+
+ #    # ###### #####  #   ##       ####  #    # ###### #####  # ######  ####
+ ##  ## #      #    # #  #  #     #    # #    # #      #    # # #      #
+ # ## # #####  #    # # #    #    #    # #    # #####  #    # # #####   ####
+ #    # #      #    # # ######    #  # # #    # #      #####  # #           #
+ #    # #      #    # # #    #    #   #  #    # #      #   #  # #      #    #
+ #    # ###### #####  # #    #     ### #  ####  ###### #    # # ######  ####
+
+*/
+
+/* Extra small devices (phones, 576px and down) */
+@media only screen and (max-width: 576px) {
+    :root {
+        --regular-font-size: 4rem;
+        --card-header-font-size: 4rem;
+    }
+    #auth-container {
+        margin-top: 7rem !important;
+    }
+}
+
+/* Small devices (portrait tablets and large phones, 576px and up) */
+@media only screen and (min-width: 576px) {
+    :root {
+        --regular-font-size: 3rem;
+        --card-header-font-size: 4rem;
+    }
+    #auth-container {
+        margin-top: 4rem !important;
+    }
+}
+
+/* Medium devices (landscape tablets, 768px and up) */
+@media only screen and (min-width: 768px) {
+    :root {
+        --regular-font-size: 3rem;
+        --card-header-font-size: 3.5rem;
+    }
+    #auth-container {
+        margin-top: 4rem !important;
+    }
+}
+
+/* Large devices (laptops/desktops, 992px and up) */
+@media only screen and (min-width: 992px) {
+    :root {
+        --regular-font-size: 1.5rem;
+        --card-header-font-size: 2rem;
+    }
+    #auth-container {
+        margin-top: 2.5rem !important;
+    }
+}
+
+/* Extra large devices (large laptops and desktops, 1200px and up) */
+@media only screen and (min-width: 1200px) {
+    :root {
+        --regular-font-size: 1.25rem;
+        --card-header-font-size: 2rem;
+    }
+}
+
+/* Extra extra large devices (large laptops and desktops, 1400px and up) */
+@media only screen and (min-width: 1400px) {
+    :root {
+        /* --regular-font-size: 1rem; */
+        --card-header-font-size: 2rem;
+    }
+    #auth-container {
+        margin-top: .5rem !important;
+    }
+}

@@ -23,13 +23,14 @@ for (const elem of ripples) {
 function startRipple(event) {
     const elem = event.currentTarget;
     if (elem.querySelector(".disabled")) return;
+    var rect = elem.getBoundingClientRect();
     const circle = document.createElement("span");
     const diameter = Math.max(elem.clientWidth, elem.clientHeight);
     const radius = diameter/2;
 
     circle.style.width = circle.style.height = `${diameter}px`;
-    circle.style.left = `${event.clientX - (elem.offsetLeft + radius)}px`;
-    circle.style.top = `${event.clientY - (elem.offsetTop + radius)}px`;
+    circle.style.left = `${event.clientX - (rect.left + radius)}px`;
+    circle.style.top = `${event.clientY - (rect.top + radius)}px`;
     circle.classList.add("ripple-effect");
     const ripple = elem.getElementsByClassName("ripple-effect")[0];
     if (ripple) ripple.remove();
@@ -307,13 +308,14 @@ function connections(url) {
 
 //#region App list helper functions
 function generateConnectionButtons(connections) {
-    connections.forEach(elem => {
+    connections.forEach(connection => {
         var appContainerDiv = document.createElement('div');
         appContainerDiv.classList.add("col-xxl-4", "col-10", "m-2", "prime-button", "ripple");
         var appButton = document.createElement('button');
-        appButton.id = elem.name;
-        if (!elem.connection) appButton.innerHTML = elem.name + `<span><i class="bi bi-check2"></i></span>`;
-        else  appButton.innerHTML = elem.name;
+        appButton.id = connection.name;
+        //if the connection property is null, that means the user has already connected to that service.
+        if (!connection.connection) appButton.innerHTML = connection.name + `<span><i class="bi bi-check2"></i></span>`;
+        else  appButton.innerHTML = connection.name;
         appContainerDiv.append(appButton);
         appList.append(appContainerDiv);
     });
@@ -332,7 +334,3 @@ function showAppList() {
 }
 
 //#endregion
-
-/*
-When the UUID is authorized, fade out the authform and start the loading bar until the response from the connections request is recieved. dont redirect the page
-*/

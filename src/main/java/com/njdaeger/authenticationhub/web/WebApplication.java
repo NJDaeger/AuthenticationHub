@@ -108,7 +108,7 @@ public class WebApplication {
 
                 var result = new JsonArray();
                 registry.getApplications().forEach(application -> result.add(createObject("name", application.getApplicationName(), "connection", !application.hasConnection(state.uuid()) ? application.getConnectionUrl(session) : null)));
-                return createObject("apps", result);
+                return createObject("apps", result, "status", OK);
             } catch (RequestException e) {
                 res.header("content-type", "application/json");
                 res.status(e.getStatus());
