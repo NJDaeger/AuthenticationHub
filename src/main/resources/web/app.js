@@ -5,6 +5,11 @@ const authorizeBtn = document.getElementById("authorize");
 const authForm = document.getElementById("authform");
 const appList = document.getElementById("app-list");
 
+var serverInfo = { auth_server_ip: "[undisclosed]"};
+var firstInstruction = `Please provide your Minecraft Java Edition UUID.`;
+var secondInstruction = `Next, join <code>${() => getIp()}</code> and provide the authorization code given in the kick message, or by running /authcode in game.`;
+var thirdInstruction = `Select the service below that you would like to connect!`;
+
 //#region Ripple effect functions and logic
 
 //
@@ -86,6 +91,10 @@ function toast(message, colorClass) {
 
 //#region Other page logic and functions
 
+function getIp() {
+    return serverInfo.auth_server_ip;
+}
+
 authForm.addEventListener('animationend', () => {
     if (authForm.classList.contains("hiding")) {
         authForm.classList.add("gone")
@@ -101,15 +110,18 @@ appList.addEventListener('animationend', () => {
 
 setLoading(true);
 fetch("/info").then(res => res.json()).then(res => {
-    document.getElementById("server-ip").innerHTML = res.auth_server_ip;
+    // document.getElementById("server-ip").innerHTML = res.auth_server_ip;
+    serverInfo = res;
     const params = new URLSearchParams(window.location.search);
     if (params.has("state")) {
         connections("/applications?state=" + params.get("state"));
     } else showForm();
+    setInstructionMessage(firstInstruction);
     setLoading(false);
 }).catch(e => {
     console.log(e);
     showForm();
+    setInstructionMessage(firstInstruction);
     setAuthButtonText("Validate UUID");
     setDisabled(authInput, true);
     authInput.value = null;
@@ -136,6 +148,18 @@ function setLoading(loading) {
     else document.getElementsByClassName("loadbar")[0].classList.remove("loading");
 }
 
+function setInstructionMessage(message) {
+    const instructions = document.getElementById("instruction-message");
+    if (message == null) instructions.classList.add("hiding");
+    else if (instructions.classList.contains("gone")) {
+        instructions.innerHTML = message;
+        instructions.classList.remove("gone");
+        instructions.classList.add("open");
+    } else {
+        instructions.innerHTML = message;
+    }
+}
+
 //#endregion
 
 //#region Auth form helper logic and functions
@@ -148,6 +172,7 @@ function authButton() {
     if (!regexExp.test(id)) {
         toast("UUID Error: Your UUID provided is not properly formatted.", "bg-danger");
         setAuthButtonText("Validate UUID");
+        setInstructionMessage(firstInstruction);
         setDisabled(authInput, true);
         authInput.value = null;
         setDisabled(uuidInput, false);
@@ -217,11 +242,13 @@ function validate() {
         if (success) {
             setAuthButtonText("Authorize");
             setDisabled(uuidInput, true);
+            setInstructionMessage(secondInstruction);
             setDisabled(authInput, false);
             setLoading(false);
         } else {
             setAuthButtonText("Validate UUID");
             setDisabled(authInput, true);
+            setInstructionMessage(firstInstruction);
             authInput.value = null;
             setDisabled(uuidInput, false);
             setLoading(false);
@@ -231,6 +258,7 @@ function validate() {
         console.log(e);
         setAuthButtonText("Validate UUID");
         setDisabled(authInput, true);
+        setInstructionMessage(firstInstruction);
         authInput.value = null;
         setDisabled(uuidInput, false);
         setLoading(false);
@@ -255,10 +283,12 @@ function authorize() {
             setAuthButtonText("Authorized!");
             setDisabled(uuidInput, true);
             setDisabled(authInput, true);
+            setInstructionMessage(thirdInstruction);
             setLoading(false);
         } else {
             setAuthButtonText("Validate UUID");
             setDisabled(authInput, true);
+            setInstructionMessage(firstInstruction);
             authInput.value = null;
             setDisabled(uuidInput, false);
             setLoading(false);
@@ -268,6 +298,7 @@ function authorize() {
         console.log(e);
         setAuthButtonText("Validate UUID");
         setDisabled(authInput, true);
+        setInstructionMessage(firstInstruction);
         authInput.value = null;
         setDisabled(uuidInput, false);
         setLoading(false);
@@ -282,16 +313,17 @@ function connections(url) {
         console.log(res);
         if (success) {
             hideForm();
+            setInstructionMessage(thirdInstruction);
             generateConnectionButtons(res.apps);
             showAppList();
         } else {
             hideAppList();
             showForm();
             toast(res.message, "bg-danger");
+            window.history.pushState({}, document.title, window.location.pathname);
         }
         setLoading(false);
     }).catch(e => {
-        console.log(e);
         window.history.pushState({}, document.title, window.location.pathname);
         // setAuthButtonText("Validate UUID");
         // hideAppList();
@@ -310,12 +342,18 @@ function connections(url) {
 function generateConnectionButtons(connections) {
     connections.forEach(connection => {
         var appContainerDiv = document.createElement('div');
-        appContainerDiv.classList.add("col-xxl-4", "col-10", "m-2", "prime-button", "ripple");
-        var appButton = document.createElement('button');
+        appContainerDiv.classList.add("col-xxl-6", "my-2", "prime-button", "ripple");
+        appContainerDiv.dataset.type = "connected";
+        var appButton = document.createElement('a');
         appButton.id = connection.name;
         //if the connection property is null, that means the user has already connected to that service.
-        if (!connection.connection) appButton.innerHTML = connection.name + `<span><i class="bi bi-check2"></i></span>`;
-        else  appButton.innerHTML = connection.name;
+        if (!connection.connection) {
+            appButton.innerHTML = connection.name + `<span><i class="bi bi-check2"></i></span>`;
+        }
+        else {
+            appButton.innerHTML = connection.name;
+            appButton.href = connection.connection;
+        }
         appContainerDiv.append(appButton);
         appList.append(appContainerDiv);
     });

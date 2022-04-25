@@ -11,60 +11,60 @@
 */
 
 .prime-button[data-type="connected"] {
-    --focus-outline-color: #40c74b;
-    --focus-background-color: #36ad40;
-    --hover-background-color: #40c74b;
-    --background-color: #36ad40;
+    --focus-outline-color: #40c74b99;
+    --focus-background-color: #36ad40ff;
+    --hover-background-color: #40c74bff;
+    --background-color: #36ad40ff;
 }
 
 .prime-button {
     padding: 6px;
 }
 
-.prime-button.hide-text>button {
+.prime-button.hide-text>button, .prime-button.hide-text>a {
     color:transparent;
     transition: 0.1s;
     transition-timing-function: linear;
 }
 
-.prime-button>button:disabled {
+.prime-button>button:disabled, .prime-button>a:disabled {
     background-color: var(--disable-background-color, var(--disable-button-background-color));
     border-color: var(--disable-border-color, var(--disable-button-border-color));
-    color: var(--disable-label-color, var(--disable-button-label-color));
+    color: var(--disable-label-color, var(--disable-button-label-color)) !important;
     outline-color: var(--disable-outline-color, var(--disable-button-outline-color));
     transition-duration: 0.1s;
     transition-timing-function: linear;
     pointer-events: none;
 }
 
-.prime-button>button:focus:not(:disabled) {
+.prime-button>button:focus:not(:disabled), .prime-button>a:focus:not(:disabled) {
     outline: var(--focus-outline-color, var(--focus-button-outline-color)) solid 0.1875rem !important;
     background-color: var(--focus-background-color, var(--focus-button-background-color));
     border-color: var(--focus-border-color, var(--focus-button-border-color));
-    color: var(--focus-label-color, var(--focus-button-label-color));
+    color: var(--focus-label-color, var(--focus-button-label-color)) !important;
 
     transition-property: outline, background, color;
     transition-timing-function: linear;
     transition-duration: .1s;
 }
 
-.prime-button>button:hover:not(:disabled) {
+.prime-button>button:hover:not(:disabled), .prime-button>a:hover:not(:disabled) {
     background-color: var(--hover-background-color, var(--hover-button-background-color));
     border-color: var(--hover-border-color, var(--hover-button-border-color));
-    color: var(--hover-label-color, var(--hover-button-label-color));
+    color: var(--hover-label-color, var(--hover-button-label-color)) !important;
     outline-color: var(--hover-outline-color, var(--hover-button-outline-color));
     transition-duration: 0.1s;
     transition-timing-function: linear;
 }
 
-.prime-button>button {
+.prime-button>button, .prime-button>a {
     outline: var(--outline-color, var(--button-outline-color)) solid 0px !important;
     background-color: var(--background-color, var(--button-background-color));
     border-color: var(--border-color, var(--button-border-color));
-    color: var(--label-color, var(--button-label-color));
+    color: var(--label-color, var(--button-label-color)) !important;
 
     border: none;
-    border-radius: .25rem;
+    border-radius: var(--button-border-radius);
     width: 100%;
     height: 100%;
     padding: 0.25rem 0;
@@ -73,6 +73,12 @@
     transition-property: outline, background, color;
     transition-duration: .1s;
     transition-timing-function: linear;
+    display: block;
+}
+
+.prime-button>a {
+    text-decoration: none;
+    text-align: center;
 }
 
 /*
@@ -116,7 +122,7 @@
 }
 
 
-.prime-input-box>input:not(.disabled):hover{
+.prime-input-box>input:not(.disabled):hover {
     background-color: var(--hover-background-color, var(--hover-input-background-color));
     border-color: var(--hover-border-color, var(--hover-input-border-color));
 
@@ -143,16 +149,12 @@
 
     box-sizing: border-box;
     padding: .25rem;
-    border-radius: .25rem;
+    border-radius: var(--input-border-radius);
     border-style: solid;
     border-width: 0.0625rem;
-    font-size: smaller;
+    font-size: var(--regular-font-size);
     transition-property: outline, border, background;
-    /* transition-duration: .1s, .3s, .3s; */
     transition-duration: .1s;
-    /* background-color: var(--input-background); */
-    /* outline: var(--input-outline-color) solid 0px; */
-    border-color:var(--input-border-color);
     display: block;
     width: 100%;
 }
@@ -174,19 +176,4 @@
     color: var(--disable-label-color, var(--disable-input-label-color));
     transform: translate(-2.5%, -120%) scale(.85);
     transition-duration: .4s;
-}
-
-.ripple {
-    overflow: hidden;
-    position: relative;
-}
-
-.ripple>.ripple-effect {
-    position: absolute;
-    opacity: 1;
-    pointer-events: none;
-    border-radius: 50%;
-    transform: scale(0);
-    animation: ripple 1000ms linear;
-    background-color: rgba(255, 255, 255, 0.25);
 }

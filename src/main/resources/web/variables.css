@@ -9,7 +9,9 @@
     --primary-font-color: #404040ff;
     --primary-page-color: #0084ffff;
 
-    /* input box colors */
+    /* input box variables */
+    --input-border-radius: .75rem;
+
     --input-border-color: #9f9f9fff;
     --input-label-color: #9f9f9fff;
     --input-background-color: #ffffffff;
@@ -20,17 +22,19 @@
     --hover-input-background-color: #ffffffff;
     --hover-input-outline-color: #0084ff00;
 
-    --focus-input-border-color: #b1b1b1ff;
+    --focus-input-border-color: #0084ffff;
     --focus-input-label-color: #b1b1b1ff;
     --focus-input-background-color: #ffffffff;
-    --focus-input-outline-color: #0084ffff;
+    --focus-input-outline-color: #0084ff99;
 
     --disable-input-border-color: #e4e4e4ff;
     --disable-input-label-color: #ccccccff;
     --disable-input-background-color: #f8f8f8ff;
     --disable-input-outline-color: #0084ff00;
 
-    /* button colors */
+    /* button variables */
+    --button-border-radius: .75rem;
+
     --button-border-color: #50a9fc00;
     --button-background-color: #0084ffff;
     --button-label-color: #ffffffff;
@@ -44,7 +48,7 @@
     --focus-button-border-color: #50a9fc00;
     --focus-button-background-color: #0084ffff;
     --focus-button-label-color: #ffffffff;
-    --focus-button-outline-color: #50a9fcff;
+    --focus-button-outline-color: #0084ff99;
 
     --disable-button-border-color: #76767600;
     --disable-button-background-color: #767676ff;
@@ -90,6 +94,8 @@
     :root {
         --regular-font-size: 3rem;
         --card-header-font-size: 3.5rem;
+        --input-border-radius: .5rem;
+        --button-border-radius: .5rem;
     }
     #auth-container {
         margin-top: 4rem !important;
