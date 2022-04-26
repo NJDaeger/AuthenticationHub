@@ -2,12 +2,12 @@ const regexExp = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0
 const uuidInput = document.getElementById("uuid");
 const authInput = document.getElementById("auth-code");
 const authorizeBtn = document.getElementById("authorize");
-const authForm = document.getElementById("authform");
+const authForm = document.getElementById("auth-form");
 const appList = document.getElementById("app-list");
 
 var serverInfo = { auth_server_ip: "[undisclosed]"};
 var firstInstruction = `Please provide your Minecraft Java Edition UUID.`;
-var secondInstruction = `Next, join <code>${() => getIp()}</code> and provide the authorization code given in the kick message, or by running /authcode in game.`;
+var secondInstruction = () => `Next, join <code>${serverInfo.auth_server_ip}</code> and provide the authorization code given in the kick message, or by running <code>/authcode</code> in game.`;
 var thirdInstruction = `Select the service below that you would like to connect!`;
 
 //#region Ripple effect functions and logic
@@ -119,7 +119,6 @@ fetch("/info").then(res => res.json()).then(res => {
     setInstructionMessage(firstInstruction);
     setLoading(false);
 }).catch(e => {
-    console.log(e);
     showForm();
     setInstructionMessage(firstInstruction);
     setAuthButtonText("Validate UUID");
@@ -137,7 +136,10 @@ fetch("/info").then(res => res.json()).then(res => {
 //
 function setDisabled(elem, disabled) {
     if (disabled) elem.classList.add("disabled");
-    else elem.classList.remove("disabled");
+    else {
+        elem.focus();
+        elem.classList.remove("disabled");
+    }
 }
 
 //
@@ -150,13 +152,21 @@ function setLoading(loading) {
 
 function setInstructionMessage(message) {
     const instructions = document.getElementById("instruction-message");
-    if (message == null) instructions.classList.add("hiding");
-    else if (instructions.classList.contains("gone")) {
-        instructions.innerHTML = message;
-        instructions.classList.remove("gone");
+    if (message == null) {
+        instructions.classList.remove("open");
+        instructions.classList.add("hiding");
+    } else if (instructions.classList.contains("hiding")) {
+        instructions.innerHTML = message instanceof Function ? message() : message;
+        instructions.classList.remove("hiding");
         instructions.classList.add("open");
     } else {
-        instructions.innerHTML = message;
+        instructions.classList.remove("open");
+        instructions.classList.add("hiding");
+        setTimeout(() => {
+            instructions.innerHTML =  message instanceof Function ? message() : message;
+            instructions.classList.add("open");
+            instructions.classList.remove("hiding");
+        }, 500);
     }
 }
 
@@ -325,14 +335,8 @@ function connections(url) {
         setLoading(false);
     }).catch(e => {
         window.history.pushState({}, document.title, window.location.pathname);
-        // setAuthButtonText("Validate UUID");
-        // hideAppList();
-        // showForm();
-        // setDisabled(authInput, true);
-        // authInput.value = null;
-        // setDisabled(uuidInput, false);
         setLoading(false);
-        // toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
+        toast("API Error. Error fetching user connections. Please try again later.", "bg-danger");
     });
 }
 
@@ -343,7 +347,8 @@ function generateConnectionButtons(connections) {
     connections.forEach(connection => {
         var appContainerDiv = document.createElement('div');
         appContainerDiv.classList.add("col-xxl-6", "my-2", "prime-button", "ripple");
-        appContainerDiv.dataset.type = "connected";
+        appContainerDiv.addEventListener("click", startRipple);
+        if (!connection.connection) appContainerDiv.dataset.type = "connected";
         var appButton = document.createElement('a');
         appButton.id = connection.name;
         //if the connection property is null, that means the user has already connected to that service.

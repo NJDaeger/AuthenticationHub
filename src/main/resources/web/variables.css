@@ -1,39 +1,45 @@
 :root {
     
     /* primary page variables */
-    --regular-font-size: 2rem;
-    --card-header-font-size: 4rem;
+    --regular-font-size: calc(max(1vw, 2vh) * 1);
+    --card-header-font-size: calc(max(1vw, 2vh) * 1.5);
     --header-height: 30vh;
+    --header-font-multiplier: 3.5;
+    --subheader-font-multiplier: 1.5;
 
     /* primary page colors */
     --primary-font-color: #404040ff;
     --primary-page-color: #0084ffff;
 
     /* input box variables */
-    --input-border-radius: .75rem;
+    --input-border-radius: calc(max(1vw, 2vh) * .5);
 
     --input-border-color: #9f9f9fff;
     --input-label-color: #9f9f9fff;
     --input-background-color: #ffffffff;
     --input-outline-color: #0084ff00;
+    --input-text-color: #000000ff;
 
     --hover-input-border-color: #0084ffff;
     --hover-input-label-color: #b1b1b1ff;
     --hover-input-background-color: #ffffffff;
     --hover-input-outline-color: #0084ff00;
+    --hover-input-text-color: #000000ff;
 
     --focus-input-border-color: #0084ffff;
     --focus-input-label-color: #b1b1b1ff;
     --focus-input-background-color: #ffffffff;
     --focus-input-outline-color: #0084ff99;
+    --focus-input-text-color: #000000ff;
 
     --disable-input-border-color: #e4e4e4ff;
     --disable-input-label-color: #ccccccff;
     --disable-input-background-color: #f8f8f8ff;
     --disable-input-outline-color: #0084ff00;
+    --disable-input-text-color: #767676ff;
 
     /* button variables */
-    --button-border-radius: .75rem;
+    --button-border-radius: calc(max(1vw, 2vh) * .5);
 
     --button-border-color: #50a9fc00;
     --button-background-color: #0084ffff;
@@ -66,12 +72,11 @@
  #    # ###### #####  # #    #     ### #  ####  ###### #    # # ######  ####
 
 */
-
 /* Extra small devices (phones, 576px and down) */
 @media only screen and (max-width: 576px) {
     :root {
-        --regular-font-size: 4rem;
-        --card-header-font-size: 4rem;
+        --header-font-multiplier: 2.5;
+        --subheader-font-multiplier: 1;
     }
     #auth-container {
         margin-top: 7rem !important;
@@ -79,11 +84,7 @@
 }
 
 /* Small devices (portrait tablets and large phones, 576px and up) */
-@media only screen and (min-width: 576px) {
-    :root {
-        --regular-font-size: 3rem;
-        --card-header-font-size: 4rem;
-    }
+@media only screen and (min-width: 577px) {
     #auth-container {
         margin-top: 4rem !important;
     }
@@ -91,12 +92,6 @@
 
 /* Medium devices (landscape tablets, 768px and up) */
 @media only screen and (min-width: 768px) {
-    :root {
-        --regular-font-size: 3rem;
-        --card-header-font-size: 3.5rem;
-        --input-border-radius: .5rem;
-        --button-border-radius: .5rem;
-    }
     #auth-container {
         margin-top: 4rem !important;
     }
@@ -104,10 +99,6 @@
 
 /* Large devices (laptops/desktops, 992px and up) */
 @media only screen and (min-width: 992px) {
-    :root {
-        --regular-font-size: 1.5rem;
-        --card-header-font-size: 2rem;
-    }
     #auth-container {
         margin-top: 2.5rem !important;
     }
@@ -115,18 +106,10 @@
 
 /* Extra large devices (large laptops and desktops, 1200px and up) */
 @media only screen and (min-width: 1200px) {
-    :root {
-        --regular-font-size: 1.25rem;
-        --card-header-font-size: 2rem;
-    }
 }
 
 /* Extra extra large devices (large laptops and desktops, 1400px and up) */
 @media only screen and (min-width: 1400px) {
-    :root {
-        /* --regular-font-size: 1rem; */
-        --card-header-font-size: 2rem;
-    }
     #auth-container {
         margin-top: .5rem !important;
     }

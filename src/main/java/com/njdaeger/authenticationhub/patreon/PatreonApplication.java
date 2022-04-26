@@ -58,7 +58,7 @@ public class PatreonApplication extends Application<PatreonUser> {
 
     @Override
     public String getConnectionUrl(AuthSession session) {
-        return "www.patreon.com/oauth2/authorize" +
+        return "https://www.patreon.com/oauth2/authorize" +
                 "?response_type=code" +
                 "&client_id=" + clientId +
                 "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback") +

@@ -10,15 +10,6 @@
   ####    #   #    # ###### #    # #         ##   #    # #    # #  ####   ####   ####      ####  ###### #    #  ####   ####  ######  ####
 
 */
-.animateFirst {
-    opacity: 0;
-    animation: fadeIn .5s cubic-bezier(.12,.7,.52,1.09) .2s forwards;
-}
-
-.animateSecond {
-    opacity: 0;
-    animation: fadeIn .5s cubic-bezier(.12,.7,.52,1.09) .4s forwards;
-}
 
 .disabled {
     transition-duration: 0.3s;
@@ -28,8 +19,18 @@
     animation: hide .5s cubic-bezier(1,.02,.57,1.22) forwards;
 }
 
+p.hiding {
+    animation-delay: 1.5s;
+    animation: hideInstruction .5s cubic-bezier(1,.02,.57,1.22) forwards;
+}
+
 .open {
     animation: show .5s ease-in forwards;
+}
+
+p.open {
+    animation-delay: 1.5s;
+    animation: showInstruction .5s ease-in forwards;
 }
 
 .gone {
@@ -111,21 +112,23 @@
     text-align: center;
     max-width: 90%;
 }
-/* TODO: app list formatting */
-#app-list {
+
+#instruction-message>code {
+    font-size: var(--card-header-font-size);
+    color: var(--primary-page-color);
+    word-wrap: break-word;
+    box-shadow: 0px .15rem .25rem lightgray;
+    border-radius: var(--input-border-radius);
+    padding: .25rem;
+    background-color: #ffffff44;
+}
+
+#app-list, #auth-form {
     background: #ffffff44;
     border-radius: 1rem;
     max-width: 90%;
     box-shadow: 0px .15rem .25rem lightgray;
 }
-
-#authform {
-    background: #ffffff44;
-    border-radius: 1rem;
-    max-width: 90%;
-    box-shadow: 0px .15rem .25rem lightgray;
-}
-
 
 #auth-container {
     margin-bottom: calc(1.5 * var(--regular-font-size)) !important;
@@ -153,23 +156,23 @@ header {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
+    /* align-items: center; */
     background-color: var(--primary-page-color);
-    height: var(--header-height);
-    min-height: 150pt;
-    max-height: 30vh;
+    /* height: var(--header-height); */
+    min-height: 20vh;
+    /* max-height: 30vh; */
     width: 100%;
     transition-duration: .2s;
 }
 
 header>h1 {
-    font-size: 72pt;
+    font-size: calc(max(1vw, 2vh) * var(--header-font-multiplier));
     margin: 0;
     text-align: center;
 }
 
 header>h5 {
-    font-size: 24pt;
+    font-size: calc(max(1vw, 2vh) * var(--subheader-font-multiplier));
     text-align: center;
 }
 
@@ -236,13 +239,40 @@ header>h5 {
     }
 }
 
+@keyframes hideInstruction {
+    0% {
+        /* transform: translateY(0) scale(1); */
+        opacity: 1;
+        /* line-height: 100%; */
+    }
+    100% {
+        /* transform: translateY(30px) scale(.98); */
+        opacity: 0;
+        /* line-height: 0%; */
+    }
+}
+
+@keyframes showInstruction {
+    0% {
+        /* transform: translateY(30px) scale(.98); */
+        opacity: 0;
+        /* line-height: 0%; */
+    }
+    100% {
+        /* transform: translateY(0) scale(1); */
+        opacity: 1;
+        /* line-height: 100%; */
+    }
+}
+
+
 @keyframes fadeIn {
     0% {
-        transform: translateY(-30px);
+        /* transform: translateY(-30px); */
         opacity: 0;
     } 
     100% {
-        transform: translateY(0px);
+        /* transform: translateY(0px); */
         opacity: 1;
     }
 }
