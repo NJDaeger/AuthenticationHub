@@ -91,6 +91,10 @@ public abstract class Application<T extends ISavedConnection> {
 
     public abstract Class<T> getSavedDataClass();
 
+    public List<Field> getSavedDataFields() {
+        return Arrays.stream(getSavedDataClass().getDeclaredFields()).filter(field -> field.isAnnotationPresent(SaveData.class)).toList();
+    }
+
     public List<String> getSavedDataFieldNames() {
         var fields = Arrays.stream(getSavedDataClass().getDeclaredFields()).filter(field -> field.isAnnotationPresent(SaveData.class)).toList();
         return fields.stream().map(field -> {

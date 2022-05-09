@@ -136,10 +136,10 @@ public class AuthenticationHubConfig {
 
     /**
      * The prefix to add onto tables in the database
-     * @return The database table prefix
+     * @return The database table prefix, or an empty string if no prefix is set.
      */
     public String getDatabasePrefix() {
-        return config.getString("db-prefix", "");
+        return config.getString("db-prefix", "").toLowerCase();
     }
 
     /**

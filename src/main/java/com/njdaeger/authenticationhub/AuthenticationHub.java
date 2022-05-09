@@ -95,7 +95,7 @@ public final class AuthenticationHub extends JavaPlugin {
      * Get this plugin instance
      * @return This plugin instance
      */
-    static AuthenticationHub getInstance() {
+    public static AuthenticationHub getInstance() {
         return instance;
     }
 

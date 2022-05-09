@@ -5,15 +5,15 @@ import com.njdaeger.authenticationhub.database.SaveData;
 
 public class PatreonUser implements ISavedConnection {
 
-    @SaveData
+    @SaveData(columnOrder = 0, columnType = "varchar(512)")
     private final String refreshToken;
-    @SaveData
+    @SaveData(columnOrder = 1, columnType = "varchar(4096)")
     private final String accessToken;
-    @SaveData
+    @SaveData(columnOrder = 2, columnType = "bigint")
     private final long expiration;
-    @SaveData
+    @SaveData(columnOrder = 3)
     private final String tokenType;
-    @SaveData
+    @SaveData(columnOrder = 4, columnType = "varchar(128)")
     private final String scope;
 
     public PatreonUser(String refreshToken, String accessToken, long expiration, String tokenType, String scope) {

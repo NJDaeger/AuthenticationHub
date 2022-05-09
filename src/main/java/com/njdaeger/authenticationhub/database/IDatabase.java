@@ -18,7 +18,7 @@ public interface IDatabase {
     /**
      * Creates an application specific table in the Authentication Hub database. This also assigns an ID for this application. If the application
      * table exists already, the application ID is returned.
-     * @param application The application ID
+     * @param application The application ID, or -1 if there was an issue creating the application (SQL mainly)
      */
     int createApplication(Application<?> application);
 

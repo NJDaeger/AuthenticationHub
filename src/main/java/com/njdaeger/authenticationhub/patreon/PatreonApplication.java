@@ -62,6 +62,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                 "?response_type=code" +
                 "&client_id=" + clientId +
                 "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback") +
+                "&scope=" + URLEncoder.encode("identity identity.memberships campaigns campaigns.members campaigns.members[email] campaigns.members.address") +
                 "&state=" + session.getEncodedState(this);
     }
 

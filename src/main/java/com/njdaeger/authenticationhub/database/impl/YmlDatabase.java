@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class YmlDatabase implements IDatabase {
 
@@ -34,7 +35,7 @@ public class YmlDatabase implements IDatabase {
             - app_id2
             - app_id3
 
-    app_id_user_connections:
+    [app_id]_user_connections:
         user_id:
             app_defined_key: app value
             app_defined_key2: app value
@@ -53,12 +54,12 @@ public class YmlDatabase implements IDatabase {
             try {
                 dbFile.createNewFile();
             } catch (IOException e) {
-                plugin.getLogger().warning("An error occurred while attempting to create the YML database.");
+                plugin.getLogger().severe("An error occurred while attempting to create the YML database.");
                 e.printStackTrace();
-                database = null;
+                this.database = null;
             }
         }
-        database = YamlConfiguration.loadConfiguration(dbFile);
+        this.database = YamlConfiguration.loadConfiguration(dbFile);
     }
 
     @Override
@@ -91,37 +92,37 @@ public class YmlDatabase implements IDatabase {
     }
 
     @Override
-    public int createUser(UUID userId) {
+    public int createUser(UUID uuid) {
         int id = 0;
         var section = database.getConfigurationSection("users");
         if (section != null) {
             for (Map.Entry<String, Object> entry : section.getValues(false).entrySet()) {
                 Object value = entry.getValue();
-                if (value.equals(userId.toString())) return Integer.parseInt(entry.getKey());
+                if (value.equals(uuid.toString())) return Integer.parseInt(entry.getKey());
                 id++;
             }
         }
-        database.set("users." + id, userId.toString());
+        database.set("users." + id, uuid.toString());
         return id;
     }
 
     @Override
-    public int getUserId(UUID userId) {
+    public int getUserId(UUID uuid) {
         var section = database.getConfigurationSection("users");
         if (section != null) {
             for (Map.Entry<String, Object> entry : section.getValues(false).entrySet()) {
                 String k = entry.getKey();
                 String v = (String)entry.getValue();
-                if (v.equals(userId.toString())) return Integer.parseInt(k);
+                if (v.equals(uuid.toString())) return Integer.parseInt(k);
             }
         }
         return -1;
     }
 
     @Override
-    public List<Integer> getUserConnections(UUID userId) {
-        var id = getUserId(userId);
-        if (id == -1) throw new RuntimeException("User " + userId + " is not registered.");
+    public List<Integer> getUserConnections(UUID uuid) {
+        var id = getUserId(uuid);
+        if (id == -1) throw new RuntimeException("User " + uuid + " is not registered.");
         return database.getIntegerList("user_connections." + id);
     }
 
@@ -131,7 +132,7 @@ public class YmlDatabase implements IDatabase {
         if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered.");
         var userId = getUserId(uuid);
         if (userId == -1) throw new RuntimeException("User " + uuid + " is not registered.");
-        var connections = database.getIntegerList("user_connections." + userId);
+        var connections = getUserConnections(uuid);
         if (!connections.contains(appId)) {
             connections.add(appId);
             database.set("user_connections." + userId, connections);
@@ -151,22 +152,16 @@ public class YmlDatabase implements IDatabase {
         var savedDataCls = application.getSavedDataClass();
         var fields = application.getSavedDataFieldNames();
         var fieldTypes = application.getSavedDataFieldTypes();
-        Constructor<T> ctor = null;
 
         try {
+            Constructor<T> ctor;
             ctor = savedDataCls.getDeclaredConstructor(fieldTypes.toArray(new Class<?>[0]));
             ctor.setAccessible(true);
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
-        }
 
-        if (ctor == null) throw new RuntimeException(savedDataCls.getName() + " does not have a connection with " + application.getUniqueName());
-
-        var args = new ArrayList<>();
-        fields.forEach(field -> args.add(userSection.get(field)));
-        try {
+            var args = new ArrayList<>();
+            fields.forEach(field -> args.add(userSection.get(field)));
             return ctor.newInstance(args.toArray(new Object[0]));
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             e.printStackTrace();
         }
         throw new RuntimeException("Unable to create User Connection Instance. Fields: " + fields);
@@ -180,7 +175,12 @@ public class YmlDatabase implements IDatabase {
         if (userId == -1) throw new RuntimeException("User " + uuid + " is not registered.");
         var userSection = database.getConfigurationSection(appId + "_user_connections." + userId);
         if (userSection == null) return false;
-        else database.set(appId + "_user_connections." + userId, null);
+        else {
+            database.set(appId + "_user_connections." + userId, null);
+            var connections = getUserConnections(uuid);
+            connections.remove((Object)appId);
+            database.set("user_connections." + userId, connections);
+        }
         return true;
     }
 
