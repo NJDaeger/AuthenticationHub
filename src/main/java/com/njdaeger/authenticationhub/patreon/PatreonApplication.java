@@ -1,5 +1,6 @@
 package com.njdaeger.authenticationhub.patreon;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.web.AuthSession;
@@ -7,6 +8,7 @@ import com.njdaeger.authenticationhub.web.RequestException;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.Plugin;
 import spark.Request;
 
 import java.io.IOException;
@@ -15,34 +17,60 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class PatreonApplication extends Application<PatreonUser> {
 
     private final String clientId;
     private final int requiredPledge;
     private final String clientSecret;
+    private final String patreonUrl;
+    private final UUID campaignOwner;
+    private final Set<UUID> currentlyRefreshing;
+    private final Set<UUID> gettingPledgeStatus;
+    private final Map<UUID, Integer> pledgeStatus;
+    private int campaignId;
 
-    public PatreonApplication() {
-        super();
+    public PatreonApplication(Plugin plugin) {
+        super(plugin);
         Configuration config = getAppConfig();
         if (!config.contains("clientId")) config.set("clientId", "");
         if (!config.contains("clientSecret")) config.set("clientSecret", "");
         if (!config.contains("requiredPledge")) config.set("requiredPledge", -1);
+        if (!config.contains("campaignOwnerUuid")) config.set("campaignOwnerUuid", "");
+        if (!config.contains("patreonUrl")) config.set("patreonUrl", "");
         try {
             ((YamlConfiguration)config).save(appConfigFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
+        this.currentlyRefreshing = new HashSet<>();
+        this.gettingPledgeStatus = new HashSet<>();
+        this.pledgeStatus = new HashMap<>();
         this.clientId = config.getString("clientId", "");
         this.clientSecret = config.getString("clientSecret", "");
+        var campaignOwnerUuid = config.getString("campaignOwnerUuid", "");
+        this.campaignOwner = !campaignOwnerUuid.isEmpty() ? UUID.fromString(campaignOwnerUuid) : null;
+        this.patreonUrl = config.getString("patreonUrl", "");
         this.requiredPledge = config.getInt("requiredPledge", -1);
 
+        Bukkit.getPluginManager().registerEvents(new PatreonListener(this), plugin);
 
-        if (clientId.isEmpty() || requiredPledge < 0 || clientSecret.isEmpty()) {
-            Bukkit.getLogger().warning("clientId, clientSecret, or requiredPledge not specified. Unable to start Patreon application.");
-        } else if (canBeLoaded) {
-            Bukkit.getLogger().info("Loaded Patreon application.");
+        if (clientId.isEmpty() || requiredPledge < 0 || clientSecret.isEmpty() || patreonUrl.isEmpty() || campaignOwner == null) {
+            Bukkit.getLogger().warning("Make sure you have the fields 'clientId', 'clientSecret', 'requiredPledge', 'campaignOwnerUuid', and 'patreonUrl' set in your config.yml for the Patreon application to start up.");
+            canBeLoaded = false;
+            return;
+        }
+        this.campaignId = resolveCampaignId();
+        if (campaignId == 0) {
+            Bukkit.getLogger().warning("User " + campaignOwner + " does not own the patreon campaign " + patreonUrl + ", or the campaign does not exist (there may be a typo in the url?).");
+            canBeLoaded = false;
+            return;
+        }
+        if (canBeLoaded) {
+            if (campaignId == -1) Bukkit.getLogger().warning("Patreon application is almost ready to be used, but the campaign owner must be linked with this application to finish the setup.");
+            else Bukkit.getLogger().info("Patreon application loaded. Campaign Owner: " + campaignOwner + ", Campaign ID: " + campaignId + ", Required Pledge: " + requiredPledge + " cents.");
         }
     }
 
@@ -81,7 +109,19 @@ public class PatreonApplication extends Application<PatreonUser> {
                 .build();
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         var body = new JsonParser().parse(response.body()).getAsJsonObject();
-        database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString()));
+        var id = resolvePatronId(body.get("access_token").getAsString());
+        var pledge = campaignId != -1 ? resolvePatronPledge(id) : 0;
+        database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString(), id, pledge));
+
+        //below is for initial application setup
+        if (campaignId == -1 && campaignOwner.equals(userId)) {
+            Bukkit.getLogger().info("Completing setup for Patreon application...");
+            campaignId = resolveCampaignId();
+            var user = getConnection(userId);
+            user.updateUserPledge(resolvePatronPledge(user.getPatreonUserId()));
+            database.saveUserConnection(this, userId, user);
+            Bukkit.getLogger().info("Patreon application setup is now complete.");
+        }
     }
 
     @Override
@@ -94,4 +134,164 @@ public class PatreonApplication extends Application<PatreonUser> {
         if (!hasConnection(user)) return null;
         return database.getUserConnection(this, user);
     }
+
+    /**
+     * Gets the required amount of cents to be allowed to join the server.
+     * @return The required amount of cents to be allowed to join the server.
+     */
+    public int getRequiredPledge() {
+        return requiredPledge;
+    }
+
+    /**
+     * Check if the application is currently trying to refresh the user token.
+     * @param user The user to check.
+     * @return True if the application is currently trying to refresh the user token.
+     */
+    public boolean isRefreshingUserToken(UUID user) {
+        return currentlyRefreshing.contains(user);
+    }
+
+    /**
+     * Check if the application is currently trying to resolve the updated pledge amount for the user.
+     * @param user The user to check.
+     * @return True if the application is currently trying to resolve the updated pledge amount for the user, false otherwise.
+     */
+    public boolean isGettingPledgeStatus(UUID user) {
+        return gettingPledgeStatus.contains(user);
+    }
+
+    /**
+     * Gets the amount of cents the user has pledged to the campaign.
+     * @param userId The minecraft UUID of the user to get the pledge info of
+     * @param user The PatreonUser object of the user to get the pledge info of
+     * @return The amount of cents the user has pledged to the campaign, -1 if the user has not pledged, or 0 if we are searching for the pledge status and cannot confirm their pledge amount yet
+     */
+    public int getPledgingAmount(UUID userId, PatreonUser user) {
+        if (gettingPledgeStatus.contains(userId) || currentlyRefreshing.contains(userId)) return 0;//we dont know if the user is pledging or not at this point
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            //always get the pledge status of the user, even if they are already in the map
+            //if we dont have a cached pledge for this user, add them to the waiting list
+            if (!pledgeStatus.containsKey(userId)) {
+                gettingPledgeStatus.add(userId);
+                Bukkit.getLogger().info("No pledge status cached for user " + userId + ", fetching from Patreon.");
+            } else {
+                Bukkit.getLogger().info("Cached pledge for user " + userId + " is " + pledgeStatus.get(userId) + " cents. Updating from Patreon.");
+            }
+            gettingPledgeStatus.add(userId);
+            var amount = resolvePatronPledge(user.getPatreonUserId());
+            pledgeStatus.put(userId, amount == 0 ? -1 : amount);
+            if (user.getPledgingAmount() != amount) {
+                user.updateUserPledge(amount);
+                database.saveUserConnection(this, userId, user);
+            }
+            gettingPledgeStatus.remove(userId);
+        });
+        return pledgeStatus.getOrDefault(userId, 0);//return 0 since we dont know if the user is pledging or not
+    }
+
+    void refreshUserToken(UUID userId, PatreonUser user) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            plugin.getLogger().info("Refreshing Patreon connection for " + userId);
+            currentlyRefreshing.add(userId);
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://www.patreon.com/api/oauth2/token?grant_type=refresh_token&refresh_token=" + user.getRefreshToken() + "&client_id=" + clientId + "&client_secret=" + clientSecret))
+                    .POST(HttpRequest.BodyPublishers.ofString(""))
+                    .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                    .build();
+            HttpResponse<String> response;
+            try {
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                e.printStackTrace();
+                return;
+            }
+            var body = new JsonParser().parse(response.body()).getAsJsonObject();
+            var pledge = resolvePatronPledge(user.getPatreonUserId());
+            user.updateUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString(), pledge);
+            database.saveUserConnection(this, userId, user);
+            plugin.getLogger().info("Refreshed Patreon connection for " + userId);
+            currentlyRefreshing.remove(userId);
+        });
+    }
+
+    private int resolvePatronPledge(int patronUserId) {
+        var owner = getConnection(campaignOwner);
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+
+            var currentUrl = "https://www.patreon.com/api/oauth2/v2/campaigns/" + campaignId + "/members?fields%5Bmember%5D=currently_entitled_amount_cents&include=user";
+            do {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(currentUrl))
+                        .GET()
+                        .setHeader("Authorization", "Bearer " + owner.getAccessToken())
+                        .build();
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                var body = new JsonParser().parse(response.body()).getAsJsonObject();
+                var data = body.get("data").getAsJsonArray();
+                //iterate through the data array to find the json object whose relationships.user.data.id section of the json response matches the patreon user id
+                //if the user is not found in the data array, check the links.next section repeat the request with the link provided in the links.next section
+                //if the user is found in the data array, break the loop and return that user's currently_entitled_amount_cents
+                for (JsonElement element : data) {
+                    var userData = element.getAsJsonObject().get("relationships").getAsJsonObject().get("user").getAsJsonObject().get("data").getAsJsonObject();
+                    if (userData.get("id").getAsInt() == patronUserId) {
+                        //if we find them in the map, we know they are currently pledged or have pledged before- if the amount is 0, they are no longer pledged, so map them to -1.
+                        return element.getAsJsonObject().get("attributes").getAsJsonObject().get("currently_entitled_amount_cents").getAsInt();
+                    }
+                }
+                currentUrl = body.has("links") ? body.get("links").getAsJsonObject().get("next").getAsString() : null;
+            } while (currentUrl != null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    private int resolvePatronId(String accessToken) throws IOException, InterruptedException {
+        //resolve the patron id from the oauth2 current_user endpoint
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://www.patreon.com/api/oauth2/v2/identity"))
+                .header("Authorization", "Bearer " + accessToken)
+                .GET()
+                .build();
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        var body = new JsonParser().parse(response.body()).getAsJsonObject();
+        return body.get("data").getAsJsonObject().get("id").getAsInt();
+    }
+
+    private int resolveCampaignId() {
+        var user = getConnection(campaignOwner);
+        if (user == null) return -1;
+        CompletableFuture<Integer> pledgeStatus = CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpClient client = HttpClient.newHttpClient();
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://www.patreon.com/api/oauth2/api/current_user/campaigns"))
+                        .GET()
+                        .setHeader("Authorization", "Bearer " + user.getAccessToken())
+                        .build();
+                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                var body = new JsonParser().parse(response.body()).getAsJsonObject();
+                var data = body.get("data").getAsJsonArray();
+                //find the campaign id of the campaign whose url matches the patreonUrl
+                for (JsonElement element : data) {
+                    var campaign = element.getAsJsonObject();
+                    var attributes = campaign.get("attributes").getAsJsonObject();
+                    if (attributes.get("url").getAsString().equals(patreonUrl)) {
+                        return campaign.get("id").getAsInt();
+                    }
+                }
+                return 0;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return 0;
+            }
+        });
+        pledgeStatus.thenAccept(pledgeStatus::complete);
+        return pledgeStatus.join();
+    }
+
 }

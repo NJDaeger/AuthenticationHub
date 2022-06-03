@@ -32,8 +32,9 @@ public class SqlDatabase implements IDatabase {
         var config = plugin.getAuthHubConfig();
         try {
             if (this.database == null || this.database.isClosed()) {
-                return DriverManager.getConnection("jdbc:mysql://" + config.getDatabaseHost() + ":" + config.getDatabasePort() + "/" + config.getDatabaseName() + "?allowReconnect=true&autoReconnect=true", config.getDatabaseUsername(), config.getDatabasePassword());
-            } else return this.database;
+                this.database = DriverManager.getConnection("jdbc:mysql://" + config.getDatabaseHost() + ":" + config.getDatabasePort() + "/" + config.getDatabaseName() + "?allowReconnect=true&autoReconnect=true", config.getDatabaseUsername(), config.getDatabasePassword());
+            }
+            return this.database;
         } catch (SQLException e) {
             e.printStackTrace();
         }

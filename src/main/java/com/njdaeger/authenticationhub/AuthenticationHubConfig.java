@@ -21,7 +21,7 @@ public class AuthenticationHubConfig {
      * Get the storage handler currently enabled for Authentication Hub.
      * @return The storage handler
      */
-    public StorageHandler getStorageHandler() {
+    public StorageHandler<?> getStorageHandler() {
         String storage = config.getString("storage-handler", "YML");
         StorageHandler<?> type;
         try {
@@ -126,7 +126,7 @@ public class AuthenticationHubConfig {
      * @return The database password
      */
     public String getDatabasePassword() {
-        String password = config.getString("db-host");
+        String password = config.getString("db-password");
         if (password == null) {
             password = "password";
             plugin.getLogger().warning("The value for \"db-password\" could not be parsed. Defaulting to " + password);

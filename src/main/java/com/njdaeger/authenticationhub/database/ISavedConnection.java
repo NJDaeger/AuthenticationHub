@@ -18,7 +18,6 @@ public interface ISavedConnection {
                 var annotation = field.getAnnotation(SaveData.class);
                 var name = annotation.fieldName().isEmpty() ? field.getName() : annotation.fieldName();
                 var val = field.get(this);
-                System.out.println(name);//todo for some reason this is getting "identity" in the field list.
                 map.put(name, val);
             }
         } catch (IllegalAccessException e) {
