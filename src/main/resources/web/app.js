@@ -7,7 +7,7 @@ const appList = document.getElementById("app-list");
 
 var serverInfo = { auth_server_ip: "[undisclosed]"};
 var firstInstruction = `Please provide your Minecraft Java Edition UUID.`;
-var secondInstruction = () => `Next, join <code>${serverInfo.auth_server_ip}</code> and provide the authorization code given in the kick message, or by running <code>/authcode</code> in game.`;
+var secondInstruction = () => `Next, join <code>${serverInfo.auth_server_ip}</code> and provide the authorization code given in the kick message, or by running <code>/authhub</code> in game.`;
 var thirdInstruction = `Select the service below that you would like to connect!`;
 
 //#region Ripple effect functions and logic

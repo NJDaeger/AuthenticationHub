@@ -1,6 +1,5 @@
 package com.njdaeger.authenticationhub.patreon;
 
-import com.njdaeger.authenticationhub.AuthenticationHub;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
@@ -22,7 +21,7 @@ public class PatreonListener implements Listener {
         if (Bukkit.getServer().getWhitelistedPlayers().stream().anyMatch(offlinePlayer -> offlinePlayer.getUniqueId().equals(event.getPlayer().getUniqueId()))) {
             if (user != null) {
                 if (user.isExpired()) {
-                    event.getPlayer().sendMessage(ChatColor.BLUE + "[AuthenticationHub]" + ChatColor.DARK_AQUA + " Your Patreon account verification has expired. Please re-verify your account by visiting " + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + AuthenticationHub.getInstance().getAuthHubConfig().getHubUrl());
+                    event.getPlayer().sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.RESET + application.getAppConfig().getString("messages.expiredUser", "null"));
                     application.removeConnection(event.getPlayer().getUniqueId());
                     return;
                 }
@@ -37,14 +36,13 @@ public class PatreonListener implements Listener {
         if (user == null) return;
 
         if (user.isExpired()) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER,  ChatColor.RED + "Your Patreon account verification has expired. Please re-verify your account by visiting " + ChatColor.DARK_AQUA + ChatColor.UNDERLINE + AuthenticationHub.getInstance().getAuthHubConfig().getHubUrl());
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.expiredUser", "null"));
             application.removeConnection(event.getPlayer().getUniqueId());
             return;
         }
 
         if (application.isRefreshingUserToken(event.getPlayer().getUniqueId())) {
-            //todo: add "refreshing token" message
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ChatColor.DARK_AQUA + "Your Patreon account is currently being re-verified. Please wait a few seconds and try again.");
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.refreshingUserToken", "null"));
             return;
         }
 
@@ -54,14 +52,14 @@ public class PatreonListener implements Listener {
         var amount = application.getPledgingAmount(event.getPlayer().getUniqueId(), user);
 
         if (application.isGettingPledgeStatus(event.getPlayer().getUniqueId()) || amount == 0) {//this means the application is still resolving the pledge status, we dont want to refresh the user token while this is occurring.
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER,  ChatColor.DARK_AQUA + "We are verifying your Patreon pledge status. Please wait a few seconds and try again.");
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.gettingPledgeStatus", "null"));
             return;
         }
 
         if (amount == -1) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ChatColor.RED + "You are not whitelisted or an Architect patron on this server. To apply, visit http://apply.greenfieldmc.net and to become a patron, visit http://patreon.greenfieldmc.net");
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notAPatron", "null"));
         } else if (amount < application.getRequiredPledge()) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, ChatColor.DARK_AQUA + "Upgrade your pledging plan to Architect tier to access the server.");
+            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notEnoughPledge", "null"));
         } else {
             event.allow();
             Bukkit.getLogger().info(event.getPlayer().getName() + " has logged in via Patreon with a pledge of " + amount + " cents.");

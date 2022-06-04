@@ -39,6 +39,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
     //
     @Override
     public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+        //todo update the command to have better chat formatting and maybe a help command.
         UUID userId;
         boolean reset = false;
         boolean player = sender instanceof Player;

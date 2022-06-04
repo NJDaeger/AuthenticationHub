@@ -3,6 +3,7 @@ package com.njdaeger.authenticationhub.patreon;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.njdaeger.authenticationhub.Application;
+import com.njdaeger.authenticationhub.AuthenticationHub;
 import com.njdaeger.authenticationhub.web.AuthSession;
 import com.njdaeger.authenticationhub.web.RequestException;
 import org.bukkit.Bukkit;
@@ -19,6 +20,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+
+import static org.bukkit.ChatColor.*;
 
 public class PatreonApplication extends Application<PatreonUser> {
 
@@ -40,6 +43,12 @@ public class PatreonApplication extends Application<PatreonUser> {
         if (!config.contains("requiredPledge")) config.set("requiredPledge", -1);
         if (!config.contains("campaignOwnerUuid")) config.set("campaignOwnerUuid", "");
         if (!config.contains("patreonUrl")) config.set("patreonUrl", "");
+        if (!config.contains("messages.expiredUser")) config.set("messages.expiredUser", RED + "Your Patreon account verification has expired. Please re-verify your account by visiting " + GRAY + UNDERLINE + AuthenticationHub.getInstance().getAuthHubConfig().getHubUrl());
+        if (!config.contains("messages.refreshingUserToken")) config.set("messages.refreshingUserToken", DARK_AQUA + "Your Patreon account is currently being re-verified. Please wait a few seconds and try again.");
+        if (!config.contains("messages.gettingPledgeStatus")) config.set("messages.gettingPledgeStatus", DARK_AQUA + "We are verifying your Patreon pledge status. Please wait a few seconds and try again.");
+        if (!config.contains("messages.notAPatron")) config.set("messages.notAPatron", RED + "You are not whitelisted or an Architect patron on this server.");
+        if (!config.contains("messages.notEnoughPledged")) config.set("messages.notEnoughPledged", RED + "Upgrade your pledging plan a higher tier to access this server.");
+
         try {
             ((YamlConfiguration)config).save(appConfigFile);
         } catch (IOException e) {
@@ -90,7 +99,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                 "?response_type=code" +
                 "&client_id=" + clientId +
                 "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback") +
-                "&scope=" + URLEncoder.encode("identity identity.memberships campaigns campaigns.members campaigns.members[email] campaigns.members.address") +
+                "&scope=" + URLEncoder.encode("identity identity.memberships campaigns campaigns.members") +
                 "&state=" + session.getEncodedState(this);
     }
 
@@ -111,14 +120,14 @@ public class PatreonApplication extends Application<PatreonUser> {
         var body = new JsonParser().parse(response.body()).getAsJsonObject();
         var id = resolvePatronId(body.get("access_token").getAsString());
         var pledge = campaignId != -1 ? resolvePatronPledge(id) : 0;
-        database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString(), id, pledge));
+        database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), body.get("scope").getAsString(), id, pledge));
 
         //below is for initial application setup
         if (campaignId == -1 && campaignOwner.equals(userId)) {
             Bukkit.getLogger().info("Completing setup for Patreon application...");
             campaignId = resolveCampaignId();
             var user = getConnection(userId);
-            user.updateUserPledge(resolvePatronPledge(user.getPatreonUserId()));
+            user.updateUserPledge(userId, resolvePatronPledge(user.getPatreonUserId()));
             database.saveUserConnection(this, userId, user);
             Bukkit.getLogger().info("Patreon application setup is now complete.");
         }
@@ -162,7 +171,7 @@ public class PatreonApplication extends Application<PatreonUser> {
     }
 
     /**
-     * Gets the amount of cents the user has pledged to the campaign.
+     * Gets the amount of cents the user has pledged to the campaign. Runs a bukkit async task to get the pledge amount.
      * @param userId The minecraft UUID of the user to get the pledge info of
      * @param user The PatreonUser object of the user to get the pledge info of
      * @return The amount of cents the user has pledged to the campaign, -1 if the user has not pledged, or 0 if we are searching for the pledge status and cannot confirm their pledge amount yet
@@ -182,7 +191,7 @@ public class PatreonApplication extends Application<PatreonUser> {
             var amount = resolvePatronPledge(user.getPatreonUserId());
             pledgeStatus.put(userId, amount == 0 ? -1 : amount);
             if (user.getPledgingAmount() != amount) {
-                user.updateUserPledge(amount);
+                user.updateUserPledge(userId, amount);
                 database.saveUserConnection(this, userId, user);
             }
             gettingPledgeStatus.remove(userId);
@@ -209,7 +218,8 @@ public class PatreonApplication extends Application<PatreonUser> {
             }
             var body = new JsonParser().parse(response.body()).getAsJsonObject();
             var pledge = resolvePatronPledge(user.getPatreonUserId());
-            user.updateUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong(), body.get("token_type").getAsString(), body.get("scope").getAsString(), pledge);
+            user.updateUser(userId, body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), body.get("scope").getAsString(), pledge);
+            pledgeStatus.put(userId, pledge);
             database.saveUserConnection(this, userId, user);
             plugin.getLogger().info("Refreshed Patreon connection for " + userId);
             currentlyRefreshing.remove(userId);
