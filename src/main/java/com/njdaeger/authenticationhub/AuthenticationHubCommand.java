@@ -22,14 +22,12 @@ import static net.md_5.bungee.api.chat.HoverEvent.Action.SHOW_TEXT;
 public class AuthenticationHubCommand extends BukkitCommand {
 
     private final WebApplication webApp;
-    private final AuthenticationHub plugin;
 
-    protected AuthenticationHubCommand(AuthenticationHub plugin, WebApplication webApp) {
+    protected AuthenticationHubCommand(WebApplication webApp) {
         super("authhub");
         this.description = "Get the single-use authorization token for AuthenticationHub's Minecraft account authenticator.";
         this.usageMessage = "/authhub [reset] [uuid]";
         this.webApp = webApp;
-        this.plugin = plugin;
     }
 
     //
@@ -86,14 +84,13 @@ public class AuthenticationHubCommand extends BukkitCommand {
 
         //If the given session is null, just fail gracefully
         if (session == null) {
-            var msg = player ? "You have not started a session yet. Start one at " + ChatColor.UNDERLINE + plugin.getAuthHubConfig().getHubUrl() : "No web session has been started for that user.";
-            sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + msg);
+            sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "No web session has been started for that user.");
             return true;
         }
 
         //If we are resetting the session, remove it from the webapp session map
         if (reset) {
-            var msg = player ? "Your session was reset." : "User session was reset.";
+            var msg = player && ((Player) sender).getUniqueId().equals(userId) ? "Your session was reset." : "User session was reset.";
             sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + msg);
             webApp.removeSession(userId);
             return true;
@@ -116,6 +113,8 @@ public class AuthenticationHubCommand extends BukkitCommand {
                 .append("[Click to Copy]").underlined(true).bold(true)
                 .event(new ClickEvent(COPY_TO_CLIPBOARD, session.getAuthToken()))
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Copy your auth token").color(ChatColor.GRAY).create())))
+                .retain(ComponentBuilder.FormatRetention.NONE)
+                .color(ChatColor.DARK_AQUA)
                 .append(" or ")
                 .append("[Hover to View]").underlined(true).bold(true)
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append(session.getAuthToken()).color(ChatColor.GRAY).create()))).create();
