@@ -76,7 +76,10 @@ public class SqlUtil {
 
         public int update(Statement statement, String sqlWhere, Map<String, Object> values) throws SQLException {
             StringBuilder query = new StringBuilder("UPDATE " + tableName + " SET ");
-            values.forEach((key, value) -> query.append(key).append(" = ").append(value).append(","));
+            values.forEach((key, val) -> {
+                if (val instanceof Number) query.append(key).append('=').append(val).append(",");
+                else query.append(key).append('=').append("'").append(val).append("',");
+            });
             query.deleteCharAt(query.length() - 1);
             query.append(" WHERE ").append(sqlWhere);
 //            System.out.println(query);

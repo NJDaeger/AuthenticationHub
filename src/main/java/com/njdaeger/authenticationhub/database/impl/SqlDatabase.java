@@ -15,6 +15,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public class SqlDatabase implements IDatabase {
@@ -64,11 +65,13 @@ public class SqlDatabase implements IDatabase {
             Statement statement = getConnection().createStatement();
             var res = SqlUtil.APPLICATIONS.select(statement, "app_id", "app_name = '" + application.getUniqueName().toLowerCase() + "'");
             if (!res.next()) {
-
+                SqlUtil.APPLICATIONS.insert(statement, Map.of("app_name", application.getUniqueName().toLowerCase()));
                 //I want to add it to the applications table AFTER i create the table for the new application.
-                var newAppIdRes = SqlUtil.APPLICATIONS.select(statement, "last_insert_id()");
-
-                var app_id = newAppIdRes.next() ? newAppIdRes.getInt("last_insert_id()") : 1;
+                var newAppIdRes = SqlUtil.APPLICATIONS.select(statement, "app_id", "app_name = '" + application.getUniqueName().toLowerCase() + "'");
+                var app_id = newAppIdRes.next() ? newAppIdRes.getInt("app_id") : -1;
+                if (app_id == -1) {
+                    throw new RuntimeException("Unable to create application. Application ID was not found.");
+                }
 
                 StringBuilder columns = new StringBuilder("user_id int NOT NULL,");
                 for (Field field : application.getSavedDataFields()) {
@@ -79,7 +82,7 @@ public class SqlDatabase implements IDatabase {
                 columns.append("CONSTRAINT FK_User_id_").append(app_id).append(" FOREIGN KEY (user_id) REFERENCES ").append(prefix).append("users(id)");
                 SqlUtil.getApplication(app_id).create(statement, columns.toString());
 
-                SqlUtil.APPLICATIONS.insert(statement, "last_insert_id(), '" + application.getUniqueName().toLowerCase() + "'");
+//                SqlUtil.APPLICATIONS.insert(statement, "last_insert_id(), '" + application.getUniqueName().toLowerCase() + "'");
             }
             else return res.getInt("app_id");
         } catch (SQLException e) {
@@ -111,7 +114,8 @@ public class SqlDatabase implements IDatabase {
 
             var res = SqlUtil.USERS.select(statement, "id", "uuid = '" + userId.toString() + "'");
             if (!res.next()) {
-                SqlUtil.USERS.insert(statement, "last_insert_id(), '" + userId + "'");
+                SqlUtil.USERS.insert(statement, Map.of("uuid", userId.toString()));
+//                SqlUtil.USERS.insert(statement, "last_insert_id(), '" + userId + "'");
                 var set = SqlUtil.USERS.select(statement, "id", "uuid = '" + userId + "'");
                 set.next();
                 return set.getInt("id");

@@ -113,9 +113,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
                 .append("[Click to Copy]").underlined(true).bold(true)
                 .event(new ClickEvent(COPY_TO_CLIPBOARD, session.getAuthToken()))
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Copy your auth token").color(ChatColor.GRAY).create())))
-                .retain(ComponentBuilder.FormatRetention.NONE)
-                .color(ChatColor.DARK_AQUA)
-                .append(" or ")
+                .append(" or ").retain(ComponentBuilder.FormatRetention.NONE).color(ChatColor.DARK_AQUA)
                 .append("[Hover to View]").underlined(true).bold(true)
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append(session.getAuthToken()).color(ChatColor.GRAY).create()))).create();
         ((Player) sender).spigot().sendMessage(message);

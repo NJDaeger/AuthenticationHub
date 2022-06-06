@@ -1,12 +1,14 @@
-const regexExp = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
-const uuidInput = document.getElementById("uuid");
+const regexExp = /^[a-zA-Z0-9_]{3,16}$/;
+//regular expression to check if the username is valid
+
+const usernameInput = document.getElementById("username");
 const authInput = document.getElementById("auth-code");
 const authorizeBtn = document.getElementById("authorize");
 const authForm = document.getElementById("auth-form");
 const appList = document.getElementById("app-list");
 
 var serverInfo = { auth_server_ip: "[undisclosed]"};
-var firstInstruction = `Please provide your Minecraft Java Edition UUID.`;
+var firstInstruction = `Please provide your Minecraft Java Edition Username.`;
 var secondInstruction = () => `Next, join <code>${serverInfo.auth_server_ip}</code> and provide the authorization code given in the kick message, or by running <code>/authhub</code> in game.`;
 var thirdInstruction = `Select the service below that you would like to connect!`;
 
@@ -121,10 +123,10 @@ fetch("/info").then(res => res.json()).then(res => {
 }).catch(e => {
     showForm();
     setInstructionMessage(firstInstruction);
-    setAuthButtonText("Validate UUID");
+    setAuthButtonText("Validate Username");
     setDisabled(authInput, true);
     authInput.value = null;
-    setDisabled(uuidInput, false);
+    setDisabled(usernameInput, false);
     setLoading(false);
     toast("Server Error. There was a problem requesting page info. Please try again later.", "bg-danger");
 });
@@ -135,8 +137,11 @@ fetch("/info").then(res => res.json()).then(res => {
 //in the input box.
 //
 function setDisabled(elem, disabled) {
-    if (disabled) elem.classList.add("disabled");
-    else {
+    if (disabled) {
+        elem.classList.add("disabled");
+        elem.setAttribute("tabindex", "-1");
+    } else {    
+        elem.setAttribute("tabindex", "0");
         elem.focus();
         elem.classList.remove("disabled");
     }
@@ -178,14 +183,14 @@ function setInstructionMessage(message) {
 //When the button is pressed, we need to do some checks for the frontend before we call the backend
 //
 function authButton() {
-    var id = document.getElementById('uuid').value;
+    var id = document.getElementById('username').value;
     if (!regexExp.test(id)) {
-        toast("UUID Error: Your UUID provided is not properly formatted.", "bg-danger");
-        setAuthButtonText("Validate UUID");
+        toast("Username Error: Your username provided is not properly formatted.", "bg-danger");
+        setAuthButtonText("Validate Username");
         setInstructionMessage(firstInstruction);
         setDisabled(authInput, true);
         authInput.value = null;
-        setDisabled(uuidInput, false);
+        setDisabled(usernameInput, false);
         setLoading(false);
         return;
     } else if (authInput.classList.contains("disabled")) validate();
@@ -224,7 +229,7 @@ function showForm() {
 }
 
 //Adding event listeners to uuid and auth code input so nothing can be typed when disabled.
-uuidInput.addEventListener("keydown", noType);
+usernameInput.addEventListener("keydown", noType);
 authInput.addEventListener("keydown", noType);
 
 //Disable typing in an input box
@@ -240,37 +245,37 @@ function noType(event) {
 //#region API request functions
 
 //
-//Validate the user UUID
+//Validate the username
 //
 function validate() {
     fetch("/validate", {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({uuid: uuidInput.value})
+        body: JSON.stringify({username: usernameInput.value})
     }).then(res => res.json()).then(res => {
         const success = res.status === 200;
         if (success) {
             setAuthButtonText("Authorize");
-            setDisabled(uuidInput, true);
+            setDisabled(usernameInput, true);
             setInstructionMessage(secondInstruction);
             setDisabled(authInput, false);
             setLoading(false);
         } else {
-            setAuthButtonText("Validate UUID");
+            setAuthButtonText("Validate Username");
             setDisabled(authInput, true);
             setInstructionMessage(firstInstruction);
             authInput.value = null;
-            setDisabled(uuidInput, false);
+            setDisabled(usernameInput, false);
             setLoading(false);
         }
         toast(res.message, success ? "bg-success" : "bg-danger");
     }).catch(e => {
         console.log(e);
-        setAuthButtonText("Validate UUID");
+        setAuthButtonText("Validate Username");
         setDisabled(authInput, true);
         setInstructionMessage(firstInstruction);
         authInput.value = null;
-        setDisabled(uuidInput, false);
+        setDisabled(usernameInput, false);
         setLoading(false);
         toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
     });
@@ -283,7 +288,7 @@ function authorize() {
     fetch("/authorize", {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({authCode: authInput.value, uuid: uuidInput.value})
+        body: JSON.stringify({authCode: authInput.value, username: usernameInput.value})
     }).then(res => res.json()).then(res => {
         const success = res.status === 200;
         if (res.call) {
@@ -291,26 +296,26 @@ function authorize() {
         }
         else if (success) {
             setAuthButtonText("Authorized!");
-            setDisabled(uuidInput, true);
+            setDisabled(usernameInput, true);
             setDisabled(authInput, true);
             setInstructionMessage(thirdInstruction);
             setLoading(false);
         } else {
-            setAuthButtonText("Validate UUID");
+            setAuthButtonText("Validate Username");
             setDisabled(authInput, true);
             setInstructionMessage(firstInstruction);
             authInput.value = null;
-            setDisabled(uuidInput, false);
+            setDisabled(usernameInput, false);
             setLoading(false);
         }
         toast(res.message, success ? "bg-success" : "bg-danger");
     }).catch(e => {
         console.log(e);
-        setAuthButtonText("Validate UUID");
+        setAuthButtonText("Validate Username");
         setDisabled(authInput, true);
         setInstructionMessage(firstInstruction);
         authInput.value = null;
-        setDisabled(uuidInput, false);
+        setDisabled(usernameInput, false);
         setLoading(false);
         toast("API Error. Unable to authorize profiles right now, please try again later.", "bg-danger");
     });

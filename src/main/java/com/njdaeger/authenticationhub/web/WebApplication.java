@@ -233,7 +233,7 @@ public class WebApplication {
      * /validate
      *
      * params:
-     *      uuid    - The users UUID
+     *      username    - The users username
      */
     public void postValidate() {
         post("/validate", "application/json", (req, res) -> {
@@ -242,17 +242,23 @@ public class WebApplication {
                 JsonObject body = parseBody(req);
 
                 //The json element must exist and it must be of primitive type.
-                if (!body.has("uuid") || !body.get("uuid").isJsonPrimitive()) throw new RequestException();
-
+                if (!body.has("username") || !body.get("username").isJsonPrimitive()) throw new RequestException();
+                var username = body.get("username").getAsString();
                 //Ensure the UUID provided is a valid UUID
-                try {
-                    uuid = UUID.fromString(body.get("uuid").getAsString());
-                } catch (IllegalArgumentException e) {
-                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
-                }
+//                try {
+//                    uuid = UUID.fromString(body.get("uuid").getAsString());
+//                } catch (IllegalArgumentException e) {
+//                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
+//                }
 
-                JsonElement session = readJsonFromUrl("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.toString().replaceAll("-", ""));
-                if (session instanceof JsonNull) throw new RequestException("Verification Error: There was a problem trying to process your request. Please try again later.");
+                JsonElement session = readJsonFromUrl("https://api.mojang.com/users/profiles/minecraft/" + username);
+                if (session instanceof JsonNull || session == null) throw new RequestException("Verification Error: There was a problem trying to process your request. Please try again later.");
+
+                try {
+                    uuid = UUID.fromString(session.getAsJsonObject().get("id").getAsString().replaceAll("(.{8})(.{4})(.{4})(.{4})(.+)", "$1-$2-$3-$4-$5"));
+                } catch (IllegalArgumentException e) {
+                    throw new RequestException("Verification Error: There was a problem trying to process your request. Please try again later.");
+                }
 
                 res.header("content-type", "application/json");
                 res.status(OK);

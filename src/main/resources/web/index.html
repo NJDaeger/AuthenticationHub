@@ -26,16 +26,16 @@
             <div id="auth-form" class="row m-auto col-xxl-5 col-12 justify-content-center mb-1 gone">
                 <div class="d-inline-flex flex-xxl-row justify-content-center align-items-center flex-column">
                     <div class="mt-3 prime-input-box ripple w-inherit">
-                        <input type="text" id="uuid" class="ps-2" required>
-                        <span>Java Edition UUID</span>
+                        <input type="text" id="username" class="ps-2" required>
+                        <span>Java Edition Username</span>
                     </div>
                     <div class="mt-3 prime-input-box ripple w-inherit">
-                        <input type="text" id="auth-code" class="disabled ps-2" required>
+                        <input type="text" id="auth-code" class="disabled ps-2" required tabindex="-1">
                         <span>Authorization Code</span>
                     </div>
                 </div>
                 <div id="auth-container" class="col-xxl-6 prime-button ripple">
-                    <button id="authorize" onclick="authButton()">Validate UUID</button>
+                    <button id="authorize" onclick="authButton()">Validate Username</button>
                 </div>
             </div>
             <div id="app-list" class="gone row m-auto col-xxl-5 justify-content-center mb-1 px-2 py-4">

@@ -29,7 +29,7 @@
     --focus-input-border-color: #0084ffff;
     --focus-input-label-color: #b1b1b1ff;
     --focus-input-background-color: #ffffffff;
-    --focus-input-outline-color: #0084ff99;
+    --focus-input-outline-color: #0084ff55;
     --focus-input-text-color: #000000ff;
 
     --disable-input-border-color: #e4e4e4ff;
@@ -41,22 +41,22 @@
     /* button variables */
     --button-border-radius: calc(max(1vw, 2vh) * .5);
 
-    --button-border-color: #50a9fc00;
+    --button-border-color: #0084ffff;
     --button-background-color: #0084ffff;
     --button-label-color: #ffffffff;
     --button-outline-color: #50a9fc00;
 
-    --hover-button-border-color: #50a9fc00;
+    --hover-button-border-color: #50a9fcff;
     --hover-button-background-color: #50a9fcff;
     --hover-button-label-color: #ffffffff;
     --hover-button-outline-color: #50a9fc00;
 
-    --focus-button-border-color: #50a9fc00;
+    --focus-button-border-color: #0084ffff;
     --focus-button-background-color: #0084ffff;
     --focus-button-label-color: #ffffffff;
-    --focus-button-outline-color: #0084ff99;
+    --focus-button-outline-color: #0084ff55;
 
-    --disable-button-border-color: #76767600;
+    --disable-button-border-color: #767676ff;
     --disable-button-background-color: #767676ff;
     --disable-button-label-color: #b1b1b1ff;
     --disable-button-outline-color: #50a9fc00;

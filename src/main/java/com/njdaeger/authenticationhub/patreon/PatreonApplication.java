@@ -71,7 +71,7 @@ public class PatreonApplication extends Application<PatreonUser> {
             canBeLoaded = false;
             return;
         }
-        this.campaignId = resolveCampaignId();
+        this.campaignId = resolveCampaignId(getConnection(campaignOwner));
         if (campaignId == 0) {
             Bukkit.getLogger().warning("User " + campaignOwner + " does not own the patreon campaign " + patreonUrl + ", or the campaign does not exist (there may be a typo in the url?).");
             canBeLoaded = false;
@@ -119,18 +119,20 @@ public class PatreonApplication extends Application<PatreonUser> {
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         var body = new JsonParser().parse(response.body()).getAsJsonObject();
         var id = resolvePatronId(body.get("access_token").getAsString());
-        var pledge = campaignId != -1 ? resolvePatronPledge(id) : 0;
+        var pledge = campaignId != -1 ? resolvePatronPledge(getConnection(campaignOwner), id) : 0;
         database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), body.get("scope").getAsString(), id, pledge));
 
         //below is for initial application setup
         if (campaignId == -1 && campaignOwner.equals(userId)) {
             Bukkit.getLogger().info("Completing setup for Patreon application...");
-            campaignId = resolveCampaignId();
-            var user = getConnection(userId);
-            user.updateUserPledge(userId, resolvePatronPledge(user.getPatreonUserId()));
-            database.saveUserConnection(this, userId, user);
+            var owner = getConnection(userId);
+            campaignId = resolveCampaignId(owner);
+            pledge = resolvePatronPledge(owner, owner.getPatreonUserId());
+            owner.updateUserPledge(userId, pledge);
+            database.saveUserConnection(this, userId, owner);
             Bukkit.getLogger().info("Patreon application setup is now complete.");
         }
+        pledgeStatus.put(userId, pledge);
     }
 
     @Override
@@ -188,7 +190,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                 Bukkit.getLogger().info("Cached pledge for user " + userId + " is " + pledgeStatus.get(userId) + " cents. Updating from Patreon.");
             }
             gettingPledgeStatus.add(userId);
-            var amount = resolvePatronPledge(user.getPatreonUserId());
+            var amount = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
             pledgeStatus.put(userId, amount == 0 ? -1 : amount);
             if (user.getPledgingAmount() != amount) {
                 user.updateUserPledge(userId, amount);
@@ -217,7 +219,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                 return;
             }
             var body = new JsonParser().parse(response.body()).getAsJsonObject();
-            var pledge = resolvePatronPledge(user.getPatreonUserId());
+            var pledge = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
             user.updateUser(userId, body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), body.get("scope").getAsString(), pledge);
             pledgeStatus.put(userId, pledge);
             database.saveUserConnection(this, userId, user);
@@ -226,8 +228,7 @@ public class PatreonApplication extends Application<PatreonUser> {
         });
     }
 
-    private int resolvePatronPledge(int patronUserId) {
-        var owner = getConnection(campaignOwner);
+    private int resolvePatronPledge(PatreonUser owner, int patronUserId) {
         try {
             HttpClient client = HttpClient.newHttpClient();
 
@@ -272,16 +273,15 @@ public class PatreonApplication extends Application<PatreonUser> {
         return body.get("data").getAsJsonObject().get("id").getAsInt();
     }
 
-    private int resolveCampaignId() {
-        var user = getConnection(campaignOwner);
-        if (user == null) return -1;
+    private int resolveCampaignId(PatreonUser owner) {
+        if (owner == null) return -1;
         CompletableFuture<Integer> pledgeStatus = CompletableFuture.supplyAsync(() -> {
             try {
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create("https://www.patreon.com/api/oauth2/api/current_user/campaigns"))
                         .GET()
-                        .setHeader("Authorization", "Bearer " + user.getAccessToken())
+                        .setHeader("Authorization", "Bearer " + owner.getAccessToken())
                         .build();
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 var body = new JsonParser().parse(response.body()).getAsJsonObject();
