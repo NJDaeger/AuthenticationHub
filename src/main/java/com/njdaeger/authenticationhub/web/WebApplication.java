@@ -30,9 +30,11 @@ public class WebApplication {
     private final ApplicationRegistry registry;
     private final AuthenticationHubConfig config;
     private final Map<UUID, AuthSession> verificationMap;
+    private final Map<String, UUID> usernameIdMap;
 
     public WebApplication(AuthenticationHub plugin, AuthenticationHubConfig config, ApplicationRegistry registry) {
         this.verificationMap = new HashMap<>();
+        this.usernameIdMap = new HashMap<>();
         this.plugin = plugin;
         this.config = config;
         this.registry = registry;
@@ -181,19 +183,23 @@ public class WebApplication {
     public void postAuthorize() {
         post("/authorize", "application/json", (req, res) -> {
             UUID uuid = null;
+            String username = null;
             try {
                 JsonObject body = parseBody(req);
 
                 //The json element must exist and it must be of primitive type.
-                if (!body.has("authCode") || !body.has("uuid") || !body.get("authCode").isJsonPrimitive() || !body.get("uuid").isJsonPrimitive())
+                if (!body.has("authCode") || !body.has("username") || !body.get("authCode").isJsonPrimitive() || !body.get("username").isJsonPrimitive())
                     throw new RequestException();
 
                 //Ensure the UUID provided is a valid UUID
-                try {
-                    uuid = UUID.fromString(body.get("uuid").getAsString());
-                } catch (IllegalArgumentException e) {
-                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
-                }
+//                try {
+//                    uuid = UUID.fromString(body.get("uuid").getAsString());
+//                } catch (IllegalArgumentException e) {
+//                    throw new RequestException("UUID Error: Your UUID provided is not properly formatted.");
+//                }
+
+                username = body.get("username").getAsString();
+                uuid = usernameIdMap.get(username);
 
                 AuthSession session = getAuthSessionSafe(uuid);
 
@@ -220,6 +226,7 @@ public class WebApplication {
                 return createObject("message", e.getMessage(), "status", e.getStatus());
             } catch (Exception e) {
                 if (uuid != null) verificationMap.remove(uuid);
+                if (username != null) usernameIdMap.remove(username);
                 res.header("content-type", "application/json");
                 res.status(SERVER_ERROR);
                 res.redirect("/");
@@ -238,12 +245,13 @@ public class WebApplication {
     public void postValidate() {
         post("/validate", "application/json", (req, res) -> {
             UUID uuid = null;
+            String username = null;
             try {
                 JsonObject body = parseBody(req);
 
                 //The json element must exist and it must be of primitive type.
                 if (!body.has("username") || !body.get("username").isJsonPrimitive()) throw new RequestException();
-                var username = body.get("username").getAsString();
+                username = body.get("username").getAsString();
                 //Ensure the UUID provided is a valid UUID
 //                try {
 //                    uuid = UUID.fromString(body.get("uuid").getAsString());
@@ -259,6 +267,7 @@ public class WebApplication {
                 } catch (IllegalArgumentException e) {
                     throw new RequestException("Verification Error: There was a problem trying to process your request. Please try again later.");
                 }
+                if (!usernameIdMap.containsKey(username)) usernameIdMap.put(username, uuid);
 
                 res.header("content-type", "application/json");
                 res.status(OK);
@@ -266,11 +275,13 @@ public class WebApplication {
                 return createObject("message", "Success! Please provide your authorization code next.", "status", OK);
             } catch (RequestException e) {
                 if (uuid != null) verificationMap.remove(uuid);
+                if (username != null) usernameIdMap.remove(username);
                 res.header("content-type", "application/json");
                 res.status(e.getStatus());
                 return createObject("message", e.getMessage(), "status", e.getStatus());
             } catch (Exception e) {
                 if (uuid != null) verificationMap.remove(uuid);
+                if (username != null) usernameIdMap.remove(username);
                 res.header("content-type", "application/json");
                 res.status(SERVER_ERROR);
                 res.redirect("/");

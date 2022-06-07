@@ -173,32 +173,54 @@ public class PatreonApplication extends Application<PatreonUser> {
     }
 
     /**
-     * Gets the amount of cents the user has pledged to the campaign. Runs a bukkit async task to get the pledge amount.
+     * Gets the amount of cents the user has pledged to the campaign from the Patreon API. Runs a bukkit async task to get the pledge amount.
      * @param userId The minecraft UUID of the user to get the pledge info of
      * @param user The PatreonUser object of the user to get the pledge info of
-     * @return The amount of cents the user has pledged to the campaign, -1 if the user has not pledged, or 0 if we are searching for the pledge status and cannot confirm their pledge amount yet
+     * @return The amount of cents the user has pledged to the campaign, -1 if the user has not pledged any cents, or 0 if we are searching for the pledge status and cannot confirm their pledge amount yet.
+     * NOTE: By default, it will return the cached pledge amount if it is available- it will still run the async task to update the cache
      */
-    public int getPledgingAmount(UUID userId, PatreonUser user) {
+    public int getPledgingAmountAsync(UUID userId, PatreonUser user) {
         if (gettingPledgeStatus.contains(userId) || currentlyRefreshing.contains(userId)) return 0;//we dont know if the user is pledging or not at this point
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            //always get the pledge status of the user, even if they are already in the map
-            //if we dont have a cached pledge for this user, add them to the waiting list
-            if (!pledgeStatus.containsKey(userId)) {
-                gettingPledgeStatus.add(userId);
-                Bukkit.getLogger().info("No pledge status cached for user " + userId + ", fetching from Patreon.");
-            } else {
-                Bukkit.getLogger().info("Cached pledge for user " + userId + " is " + pledgeStatus.get(userId) + " cents. Updating from Patreon.");
-            }
-            gettingPledgeStatus.add(userId);
-            var amount = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
-            pledgeStatus.put(userId, amount == 0 ? -1 : amount);
-            if (user.getPledgingAmount() != amount) {
-                user.updateUserPledge(userId, amount);
-                database.saveUserConnection(this, userId, user);
-            }
-            gettingPledgeStatus.remove(userId);
+            getPledgingAmountSync(userId, user);
         });
         return pledgeStatus.getOrDefault(userId, 0);//return 0 since we dont know if the user is pledging or not
+    }
+
+    /**
+     * Gets the amount of cents the user has pledged to the campaign from the Patreon API.
+     * @param userId The minecraft UUID of the user to get the pledge info of
+     * @param user The PatreonUser object of the user to get the pledge info of
+     * @return The amount of cents the user has pledged to the campaign. -1 if the user has not pledged any cents.
+     */
+    public int getPledgingAmountSync(UUID userId, PatreonUser user) {
+        if (user == null) {
+            pledgeStatus.put(userId, -1);
+            return -1;
+        }
+        if (!pledgeStatus.containsKey(userId)) {
+            gettingPledgeStatus.add(userId);
+            Bukkit.getLogger().info("No pledge status cached for user " + userId + ", fetching from Patreon.");
+        } else {
+            Bukkit.getLogger().info("Cached pledge for user " + userId + " is " + pledgeStatus.get(userId) + " cents. Updating from Patreon.");
+        }
+        var amount = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
+        pledgeStatus.put(userId, amount);
+        if (user.getPledgingAmount() != amount) {
+            user.updateUserPledge(userId, amount);
+            database.saveUserConnection(this, userId, user);
+        }
+        gettingPledgeStatus.remove(userId);
+        return amount;
+    }
+
+    /**
+     * Gets the amount of cents the user has pledged to the campaign.
+     * @param userId The minecraft UUID of the user to get the pledge info of
+     * @return The amount of cents the user has pledged to the campaign, 0 if the user's pledge has not been cached yet, or -1 if the user is not pledged.
+     */
+    public int getPledgingAmountCached(UUID userId) {
+        return pledgeStatus.getOrDefault(userId, 0);
     }
 
     void refreshUserToken(UUID userId, PatreonUser user) {
@@ -248,8 +270,9 @@ public class PatreonApplication extends Application<PatreonUser> {
                 for (JsonElement element : data) {
                     var userData = element.getAsJsonObject().get("relationships").getAsJsonObject().get("user").getAsJsonObject().get("data").getAsJsonObject();
                     if (userData.get("id").getAsInt() == patronUserId) {
+                        int amount = element.getAsJsonObject().get("attributes").getAsJsonObject().get("currently_entitled_amount_cents").getAsInt();
                         //if we find them in the map, we know they are currently pledged or have pledged before- if the amount is 0, they are no longer pledged, so map them to -1.
-                        return element.getAsJsonObject().get("attributes").getAsJsonObject().get("currently_entitled_amount_cents").getAsInt();
+                        return amount == 0 ? -1 : amount;
                     }
                 }
                 currentUrl = body.has("links") ? body.get("links").getAsJsonObject().get("next").getAsString() : null;
@@ -257,7 +280,7 @@ public class PatreonApplication extends Application<PatreonUser> {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return 0;
+        return -1;
     }
 
     private int resolvePatronId(String accessToken) throws IOException, InterruptedException {

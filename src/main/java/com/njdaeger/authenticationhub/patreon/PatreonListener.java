@@ -28,7 +28,7 @@ public class PatreonListener implements Listener {
                 if (user.isAlmostExpired()) {
                     Bukkit.getLogger().info(user.getTimeUntilExpiration());
                     application.refreshUserToken(event.getPlayer().getUniqueId(), user);
-                }
+                } else application.getPledgingAmountAsync(event.getPlayer().getUniqueId(), user);//caches the pledge amount
             }
             return;
         }
@@ -49,7 +49,7 @@ public class PatreonListener implements Listener {
         //in theory, we could use the getPledgedAmount from the user object, but that can be misleading due to it not updating when its queried (eg. it could show as 0 cents pledged
         // the first call, but after they join a second time, it updates to the proper amount since the amount updates upon a user joining the server).
         // This way, we can get the exact pledging amount every time and ensure the user is aware when we are simply just refreshing the cached amount on our end.
-        var amount = application.getPledgingAmount(event.getPlayer().getUniqueId(), user);
+        var amount = application.getPledgingAmountAsync(event.getPlayer().getUniqueId(), user);
 
         if (application.isGettingPledgeStatus(event.getPlayer().getUniqueId()) || amount == 0) {//this means the application is still resolving the pledge status, we dont want to refresh the user token while this is occurring.
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.gettingPledgeStatus", "null"));
