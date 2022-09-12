@@ -3,6 +3,7 @@ package com.njdaeger.authenticationhub.database;
 import com.njdaeger.authenticationhub.Application;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -62,12 +63,20 @@ public interface IDatabase {
 
     /**
      * Get a user connection from an application
-     * @param application The name of the application to search from
+     * @param application The application to search from
      * @param uuid The UUID of the user to search for
      * @param <T> The object that has been saved to the database and needs to be deserialized.
      * @return The SavedConnection object
      */
     <T extends ISavedConnection> T getUserConnection(Application<T> application, UUID uuid);
+
+    /**
+     * Get a list of all connections made with an application
+     * @param application The application to search from
+     * @param <T> The object that has been saved to the database and needs to be deserialized
+     * @return The list of saved connections
+     */
+    <T extends ISavedConnection> Map<UUID, T> getConnections(Application<T> application);
 
     /**
      * Remove a user connection from an application

@@ -2,19 +2,15 @@ package com.njdaeger.authenticationhub.database.impl;
 
 import com.njdaeger.authenticationhub.Application;
 import com.njdaeger.authenticationhub.AuthenticationHub;
-import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.IDatabase;
+import com.njdaeger.authenticationhub.database.ISavedConnection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 public class YmlDatabase implements IDatabase {
 
@@ -165,6 +161,40 @@ public class YmlDatabase implements IDatabase {
             e.printStackTrace();
         }
         throw new RuntimeException("Unable to create User Connection Instance. Fields: " + fields);
+    }
+
+    @Override
+    public <T extends ISavedConnection> Map<UUID, T> getConnections(Application<T> application) {
+        if (database == null) throw new RuntimeException("Database has not been initialized.");
+        var appId = getApplicationId(application);
+        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered.");
+
+        var savedDataCls = application.getSavedDataClass();
+        var fields = application.getSavedDataFieldNames();
+        var fieldTypes = application.getSavedDataFieldTypes();
+        var connections = new HashMap<UUID, T>();
+
+        try {
+            Constructor<T> ctor;
+            ctor = savedDataCls.getDeclaredConstructor(fieldTypes.toArray(new Class<?>[0]));
+            ctor.setAccessible(true);
+
+            var section = database.getConfigurationSection(appId + "_user_connections");
+            if (section == null) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered and found in the database.");
+            for (String userId : section.getKeys(false)) {
+                String stringUuid = database.getString("users." + userId);
+                if (stringUuid == null || stringUuid.isEmpty()) continue;
+                UUID uuid = UUID.fromString(stringUuid);
+                var userSection = database.getConfigurationSection(appId + "_user_connections." + userId);
+                var args = new ArrayList<>();
+                fields.forEach(field -> args.add(userSection.get(field)));
+                connections.put(uuid, ctor.newInstance(args.toArray(new Object[0])));
+            }
+
+        } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return connections;
     }
 
     @Override

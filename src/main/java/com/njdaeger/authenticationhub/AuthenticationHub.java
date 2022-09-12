@@ -2,6 +2,7 @@ package com.njdaeger.authenticationhub;
 
 import com.google.common.io.ByteStreams;
 import com.njdaeger.authenticationhub.database.IDatabase;
+import com.njdaeger.authenticationhub.discord.DiscordApplication;
 import com.njdaeger.authenticationhub.patreon.PatreonApplication;
 import com.njdaeger.authenticationhub.patreon.PatreonListener;
 import com.njdaeger.authenticationhub.web.WebApplication;
@@ -58,6 +59,7 @@ public final class AuthenticationHub extends JavaPlugin {
         Bukkit.getServicesManager().register(ApplicationRegistry.class, registry, this, ServicePriority.Normal);
 
         getApplicationRegistry().addApplication(new PatreonApplication(this));
+        getApplicationRegistry().addApplication(new DiscordApplication(this));
     }
 
     @Override

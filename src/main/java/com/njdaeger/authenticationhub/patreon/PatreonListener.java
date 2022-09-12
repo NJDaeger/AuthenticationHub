@@ -19,6 +19,7 @@ public class PatreonListener implements Listener {
     public void onPlayerLogin(PlayerLoginEvent event) {
         PatreonUser user = application.getConnection(event.getPlayer().getUniqueId());
         if (Bukkit.getServer().getWhitelistedPlayers().stream().anyMatch(offlinePlayer -> offlinePlayer.getUniqueId().equals(event.getPlayer().getUniqueId()))) {
+            //if a user is whitelisted to the server, we dont care if they are a patron or not- if their token has expired, just tell them that they will need to relink, otherwise, just refresh their token
             if (user != null) {
                 if (user.isExpired()) {
                     event.getPlayer().sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.RESET + application.getAppConfig().getString("messages.expiredUser", "null"));

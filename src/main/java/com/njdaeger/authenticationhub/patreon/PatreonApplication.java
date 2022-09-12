@@ -20,6 +20,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import static org.bukkit.ChatColor.*;
 
@@ -54,9 +57,9 @@ public class PatreonApplication extends Application<PatreonUser> {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        this.currentlyRefreshing = new HashSet<>();
-        this.gettingPledgeStatus = new HashSet<>();
-        this.pledgeStatus = new HashMap<>();
+        this.currentlyRefreshing = ConcurrentHashMap.newKeySet();
+        this.gettingPledgeStatus = ConcurrentHashMap.newKeySet();
+        this.pledgeStatus = new ConcurrentHashMap<>();
         this.clientId = config.getString("clientId", "");
         this.clientSecret = config.getString("clientSecret", "");
         var campaignOwnerUuid = config.getString("campaignOwnerUuid", "");
@@ -67,11 +70,12 @@ public class PatreonApplication extends Application<PatreonUser> {
         Bukkit.getPluginManager().registerEvents(new PatreonListener(this), plugin);
 
         if (clientId.isEmpty() || requiredPledge < 0 || clientSecret.isEmpty() || patreonUrl.isEmpty() || campaignOwner == null) {
-            Bukkit.getLogger().warning("Make sure you have the fields 'clientId', 'clientSecret', 'requiredPledge', 'campaignOwnerUuid', and 'patreonUrl' set in your config.yml for the Patreon application to start up.");
+            Bukkit.getLogger().warning("Make sure you have the fields 'clientId', 'clientSecret', 'requiredPledge', 'campaignOwnerUuid', and 'patreonUrl' set in your patreon.yml for the Patreon application to start up.");
             canBeLoaded = false;
             return;
         }
-        this.campaignId = resolveCampaignId(getConnection(campaignOwner));
+        var owner = getConnection(campaignOwner);
+        this.campaignId = resolveCampaignId(owner);
         if (campaignId == 0) {
             Bukkit.getLogger().warning("User " + campaignOwner + " does not own the patreon campaign " + patreonUrl + ", or the campaign does not exist (there may be a typo in the url?).");
             canBeLoaded = false;
@@ -79,7 +83,20 @@ public class PatreonApplication extends Application<PatreonUser> {
         }
         if (canBeLoaded) {
             if (campaignId == -1) Bukkit.getLogger().warning("Patreon application is almost ready to be used, but the campaign owner must be linked with this application to finish the setup.");
-            else Bukkit.getLogger().info("Patreon application loaded. Campaign Owner: " + campaignOwner + ", Campaign ID: " + campaignId + ", Required Pledge: " + requiredPledge + " cents.");
+            else {
+                if (owner.isAlmostExpired()) {
+                    Bukkit.getLogger().warning("Campaign owner connection is almost expired, refreshing.");
+                    refreshUserToken(campaignOwner, owner);
+                }
+                Bukkit.getLogger().info("Patreon application loaded. Campaign Owner: " + campaignOwner + ", Campaign ID: " + campaignId + ", Required Pledge: " + requiredPledge + " cents.");
+                Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+                    Bukkit.getLogger().info("Checking all Patreon User refresh statuses...");
+                    var users = database.getConnections(this);
+                    users.forEach((uuid, user) -> {
+                        if (user.isAlmostExpired()) refreshUserToken(uuid, user);
+                    });
+                }, 6000);
+            }
         }
     }
 
@@ -223,10 +240,19 @@ public class PatreonApplication extends Application<PatreonUser> {
         return pledgeStatus.getOrDefault(userId, 0);
     }
 
-    void refreshUserToken(UUID userId, PatreonUser user) {
+    public UUID getCampaignOwner() {
+        return campaignOwner;
+    }
+
+    public void refreshUserToken(UUID userId, PatreonUser user) {
+        refreshUserToken(userId, user, (u, p) -> {});
+    }
+
+    public void refreshUserToken(UUID userId, PatreonUser user, BiConsumer<UUID, Boolean> onComplete) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             plugin.getLogger().info("Refreshing Patreon connection for " + userId);
             currentlyRefreshing.add(userId);
+            var pledge = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://www.patreon.com/api/oauth2/token?grant_type=refresh_token&refresh_token=" + user.getRefreshToken() + "&client_id=" + clientId + "&client_secret=" + clientSecret))
@@ -238,15 +264,17 @@ public class PatreonApplication extends Application<PatreonUser> {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
+                onComplete.accept(userId, false);
+                currentlyRefreshing.remove(userId);
                 return;
             }
             var body = new JsonParser().parse(response.body()).getAsJsonObject();
-            var pledge = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
-            user.updateUser(userId, body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), body.get("scope").getAsString(), pledge);
+            user.updateUser(userId, body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), user.getScope(), pledge);
             pledgeStatus.put(userId, pledge);
             database.saveUserConnection(this, userId, user);
             plugin.getLogger().info("Refreshed Patreon connection for " + userId);
             currentlyRefreshing.remove(userId);
+            onComplete.accept(userId, true);
         });
     }
 
@@ -308,6 +336,15 @@ public class PatreonApplication extends Application<PatreonUser> {
                         .build();
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 var body = new JsonParser().parse(response.body()).getAsJsonObject();
+                if (body.get("errors") != null) {
+                    var error = body.get("errors").getAsJsonArray();
+                    error.forEach(e -> {
+                        var err = e.getAsJsonObject();
+                        plugin.getLogger().severe("There was an error when trying to resolve the campaign Id. [" + err.get("code_name") + "... " + err.get("detail") + "]");
+                        plugin.getLogger().warning("This could be an issue with the owners access token.");
+                    });
+                    return 0;
+                }
                 var data = body.get("data").getAsJsonArray();
                 //find the campaign id of the campaign whose url matches the patreonUrl
                 for (JsonElement element : data) {

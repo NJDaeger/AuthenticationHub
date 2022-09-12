@@ -50,7 +50,21 @@ public class AuthenticationHubCommand extends BukkitCommand {
         //The only subcommand we have available to us is the "reset" subcommand. If the executed command has any
         //arguments, the only one we will be looking for is "reset", if it is anything else, throw an error.
         if (args.length > 0) {
-            if (args[0].equalsIgnoreCase("reset")) reset = true;
+//            if (args[0].equalsIgnoreCase("refresh")) {
+//                var app = AuthenticationHub.getInstance().getApplicationRegistry().getApplication(PatreonApplication.class);
+//                if (!(sender instanceof Player) || !app.getCampaignOwner().equals(((Player) sender).getUniqueId())) {
+//                    sender.sendMessage(ChatColor.RED + "You must be the campaign owner to do that!");
+//                    return true;
+//                }
+//                var user = app.getConnection(((Player) sender).getUniqueId());
+//                app.refreshUserToken(((Player) sender).getUniqueId(), user, (u, success) -> {
+//                    if (success) sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "Refreshed your user token!");
+//                    else sender.sendMessage(ChatColor.RED + "Failed to refresh your user token. Please see the console for errors.");
+//                });
+//                sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "Refreshing your user token...");
+//                return true;
+//            }
+            /*else */if (args[0].equalsIgnoreCase("reset")) reset = true;
             else {
                 sender.sendMessage(ChatColor.RED + "Unknown subcommand '" + args[0] + "'");
                 return true;
@@ -110,7 +124,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
         //Otherwise, we are just generating a new token.
         session.setAuthToken(RandomStringUtils.random(10, true, true));
         var message = builder.append("New authentication token generated! ").color(ChatColor.DARK_AQUA)
-                .append("[Click to Copy]").underlined(true).bold(true)
+                .append("\n[Click to Copy]").underlined(true).bold(true)
                 .event(new ClickEvent(COPY_TO_CLIPBOARD, session.getAuthToken()))
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Copy your auth token").color(ChatColor.GRAY).create())))
                 .append(" or ").retain(ComponentBuilder.FormatRetention.NONE).color(ChatColor.DARK_AQUA)

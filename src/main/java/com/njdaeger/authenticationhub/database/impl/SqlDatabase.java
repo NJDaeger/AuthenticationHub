@@ -13,10 +13,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 public class SqlDatabase implements IDatabase {
 
@@ -222,6 +219,44 @@ public class SqlDatabase implements IDatabase {
             e.printStackTrace();
         }
         throw new RuntimeException("Unable to create User Connection Instance. Fields: " + fields);
+    }
+
+    @Override
+    public <T extends ISavedConnection> Map<UUID, T> getConnections(Application<T> application) {
+        if (database == null) throw new RuntimeException("Database has not been initialized.");
+        var appId = getApplicationId(application);
+        if (appId == -1) throw new RuntimeException("Application " + application.getUniqueName() + " is not registered.");
+
+        var savedDataCls = application.getSavedDataClass();
+        var fields = application.getSavedDataFieldNames();
+        var fieldTypes = application.getSavedDataFieldTypes();
+        var connections = new HashMap<UUID, T>();
+
+        try {
+            Constructor<T> ctor;
+            ctor = savedDataCls.getDeclaredConstructor(fieldTypes.toArray(new Class<?>[0]));
+            ctor.setAccessible(true);
+
+            Statement statement = getConnection().createStatement();
+            var res = statement.executeQuery("SELECT u.uuid, uc.* FROM " + appId + "_user_connections uc INNER JOIN users u ON u.id = uc.user_id");
+            if (!res.next()) return new HashMap<>();
+
+            do {
+                var args = new ArrayList<>();
+                fields.forEach(field -> {
+                    try {
+                        args.add(res.getObject(field));
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                });
+                connections.put(UUID.fromString(res.getString("uuid")), ctor.newInstance(args.toArray(new Object[0])));
+            } while (res.next());
+
+        } catch (SQLException | NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return connections;
     }
 
     @Override

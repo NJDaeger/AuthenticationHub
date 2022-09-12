@@ -1,4 +1,4 @@
-package com.njdaeger.authenticationhub.patreon;
+package com.njdaeger.authenticationhub.discord;
 
 import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.SaveData;
@@ -6,7 +6,7 @@ import org.bukkit.Bukkit;
 
 import java.util.UUID;
 
-public final class PatreonUser implements ISavedConnection {
+public class DiscordUser implements ISavedConnection {
 
     @SaveData(columnOrder = 0, columnType = "varchar(512)")
     private String refreshToken;
@@ -16,36 +16,41 @@ public final class PatreonUser implements ISavedConnection {
     private long expiration;
     @SaveData(columnOrder = 3)
     private String tokenType;
-    @SaveData(columnOrder = 4, columnType = "varchar(128)")
+    @SaveData(columnOrder = 4)
     private String scope;
-    @SaveData(columnOrder = 5, columnType = "int")
-    private final int id;
     @SaveData(columnOrder = 6, columnType = "int")
-    private int pledge;
+    private final String snowflake;
+    @SaveData(columnOrder = 7, columnType = "varchar(128)")
+    private String username;
+    @SaveData(columnOrder = 8, columnType = "varchar(4)")
+    private String discriminator;
 
-    PatreonUser(String refreshToken, String accessToken, long expiration, String tokenType, String scope, int id, int pledgeCents) {
-        this.refreshToken = refreshToken;
-        this.accessToken = accessToken;
-        this.expiration = expiration;
-        this.tokenType = tokenType;
-        this.pledge = pledgeCents;
-        this.scope = scope;
-        this.id = id;
-    }
-
-    void updateUser(UUID userId, String refreshToken, String accessToken, long expiration, String tokenType, String scope, int pledge) {
+    DiscordUser(String refreshToken, String accessToken, long expiration, String tokenType, String scope, String snowflake, String username, String discriminator) {
         this.refreshToken = refreshToken;
         this.accessToken = accessToken;
         this.expiration = expiration;
         this.tokenType = tokenType;
         this.scope = scope;
-        this.pledge = pledge;
-        Bukkit.getPluginManager().callEvent(new PatreonUserUpdateEvent(userId, this));
+        this.snowflake = snowflake;
+        this.username = username;
+        this.discriminator = discriminator;
     }
 
-    void updateUserPledge(UUID userId, int pledge) {
-        this.pledge = pledge;
-        Bukkit.getPluginManager().callEvent(new PatreonUserUpdateEvent(userId, this));
+    void updateUser(UUID userId, String refreshToken, String accessToken, long expiration, String tokenType, String scope, String username, String discriminator) {
+        this.refreshToken = refreshToken;
+        this.accessToken = accessToken;
+        this.expiration = expiration;
+        this.tokenType = tokenType;
+        this.scope = scope;
+        this.username = username;
+        this.discriminator = discriminator;
+        Bukkit.getPluginManager().callEvent(new DiscordUserUpdateEvent(userId, this));
+    }
+
+    void updateUsernameAndDisc(UUID userId, String username, String discriminator) {
+        this.username = username;
+        this.discriminator = discriminator;
+        Bukkit.getPluginManager().callEvent(new DiscordUserUpdateEvent(userId, this));
     }
 
     /**
@@ -84,43 +89,38 @@ public final class PatreonUser implements ISavedConnection {
     }
 
     /**
-     * @return The ID of this Patreon user.
+     * Get the discord user profile information. (snowflake, username, and discriminator)
+     * @return The discord user profile basic information
      */
-    public int getPatreonUserId() {
-        return id;
+    public DiscordUserProfile getDiscordProfile() {
+        return new DiscordUserProfile(snowflake, username, discriminator);
     }
 
     /**
-     * @return If this Patreon user's access token is expired.
+     * @return If this Discord user's access token is expired.
      */
     public boolean isExpired() {
         return expiration <= System.currentTimeMillis();
     }
 
     /**
-     * @return If this Patreon user's access token is almost expired. (5 days or less before expiration)
+     * @return If this Discord user's access token is almost expired. (5 days or less before expiration)
      */
     public boolean isAlmostExpired() {
         return expiration < System.currentTimeMillis() || expiration - System.currentTimeMillis() < (1000 * 60 * 60 * 24 * 5);
     }
 
     /**
-     * @return The amount of pledge this Patreon user has in cents.
-     */
-    public int getPledgingAmount() {
-        return pledge;
-    }
-
-    /**
-     * @return How much time is left in ms before this Patreon user's access token expires in a human readable format.
+     * @return How much time is left in ms before this Discord user's access token expires in a human readable format.
      */
     public String getTimeUntilExpiration() {
         long time = expiration - System.currentTimeMillis();
-        if (time < 0) return "User Patreon token has expired.";
+        if (time < 0) return "User Discord token has expired.";
         long days = time / (1000 * 60 * 60 * 24);
         long hours = (time - (days * (1000 * 60 * 60 * 24))) / (1000 * 60 * 60);
         long minutes = (time - (days * (1000 * 60 * 60 * 24)) - (hours * (1000 * 60 * 60))) / (1000 * 60);
         long seconds = (time - (days * (1000 * 60 * 60 * 24)) - (hours * (1000 * 60 * 60)) - (minutes * (1000 * 60))) / 1000;
-        return days + " days, " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds until user Patreon token expiration.";
+        return days + " days, " + hours + " hours, " + minutes + " minutes, " + seconds + " seconds until user Discord token expiration.";
     }
+
 }
