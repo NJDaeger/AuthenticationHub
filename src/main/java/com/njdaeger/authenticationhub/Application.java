@@ -1,5 +1,6 @@
 package com.njdaeger.authenticationhub;
 
+import com.google.common.collect.Maps;
 import com.njdaeger.authenticationhub.database.IDatabase;
 import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.SaveData;
@@ -13,9 +14,9 @@ import spark.Request;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 /**
@@ -96,6 +97,17 @@ public abstract class Application<T extends ISavedConnection> {
      * @return The connected user, or null if the user is not connected to this application.
      */
     public abstract T getConnection(UUID user);
+
+    /**
+     * Get a map of connections and uuids by predicate
+     * @param test The check to run on each connection to determine if it is to be returned, or null to return all connections
+     * @return The list of users that match the predicate
+     */
+    public Map<UUID, T> getConnections(Predicate<T> test) {
+        var connections = database.getConnections(this);
+        var resultList = connections.entrySet().stream().filter((e) -> test.test(e.getValue())).toArray(Map.Entry[]::new);
+        return (Map<UUID, T>) Map.ofEntries(resultList);
+    }
 
     /**
      * Remove a specific user from this application.

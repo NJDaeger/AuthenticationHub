@@ -17,8 +17,9 @@ public class PatreonListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLogin(PlayerLoginEvent event) {
+        boolean whitelist = Bukkit.hasWhitelist();
         PatreonUser user = application.getConnection(event.getPlayer().getUniqueId());
-        if (Bukkit.getServer().getWhitelistedPlayers().stream().anyMatch(offlinePlayer -> offlinePlayer.getUniqueId().equals(event.getPlayer().getUniqueId()))) {
+        if (whitelist && Bukkit.getServer().getWhitelistedPlayers().stream().anyMatch(offlinePlayer -> offlinePlayer.getUniqueId().equals(event.getPlayer().getUniqueId()))) {
             //if a user is whitelisted to the server, we dont care if they are a patron or not- if their token has expired, just tell them that they will need to relink, otherwise, just refresh their token
             if (user != null) {
                 if (user.isExpired()) {
@@ -36,13 +37,13 @@ public class PatreonListener implements Listener {
 
         if (user == null) return;
 
-        if (user.isExpired()) {
+        if (user.isExpired() && whitelist) {
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.expiredUser", "null"));
             application.removeConnection(event.getPlayer().getUniqueId());
             return;
         }
 
-        if (application.isRefreshingUserToken(event.getPlayer().getUniqueId())) {
+        if (application.isRefreshingUserToken(event.getPlayer().getUniqueId()) && whitelist) {
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.refreshingUserToken", "null"));
             return;
         }
@@ -52,14 +53,14 @@ public class PatreonListener implements Listener {
         // This way, we can get the exact pledging amount every time and ensure the user is aware when we are simply just refreshing the cached amount on our end.
         var amount = application.getPledgingAmountAsync(event.getPlayer().getUniqueId(), user);
 
-        if (application.isGettingPledgeStatus(event.getPlayer().getUniqueId()) || amount == 0) {//this means the application is still resolving the pledge status, we dont want to refresh the user token while this is occurring.
+        if ((application.isGettingPledgeStatus(event.getPlayer().getUniqueId()) || amount == 0) && whitelist) {//this means the application is still resolving the pledge status, we dont want to refresh the user token while this is occurring.
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.gettingPledgeStatus", "null"));
             return;
         }
 
-        if (amount == -1) {
+        if (amount == -1 && whitelist) {
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notAPatron", "null"));
-        } else if (amount < application.getRequiredPledge()) {
+        } else if (amount < application.getRequiredPledge() && whitelist) {
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notEnoughPledge", "null"));
         } else {
             event.allow();

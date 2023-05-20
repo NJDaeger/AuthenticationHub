@@ -11,6 +11,10 @@ import java.util.function.Predicate;
 public class ConnectionRequirement {
 
 
+    static {
+        CONNECTION_REQUIREMENTS = new HashMap<>();
+    }
+
     /**
      * Required for nobody
      */
@@ -31,7 +35,7 @@ public class ConnectionRequirement {
      */
     public static final ConnectionRequirement ALL = new ConnectionRequirement("ALL", (p) -> true);
 
-    private static final Map<String, ConnectionRequirement> CONNECTION_REQUIREMENTS = new HashMap<>();
+    private static final Map<String, ConnectionRequirement> CONNECTION_REQUIREMENTS;
     private final Predicate<Player> required;
     private final String requirementName;
 

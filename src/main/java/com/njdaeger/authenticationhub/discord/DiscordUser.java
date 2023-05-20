@@ -18,7 +18,7 @@ public class DiscordUser implements ISavedConnection {
     private String tokenType;
     @SaveData(columnOrder = 4)
     private String scope;
-    @SaveData(columnOrder = 6, columnType = "int")
+    @SaveData(columnOrder = 6, columnType = "varchar(128)")
     private final String snowflake;
     @SaveData(columnOrder = 7, columnType = "varchar(128)")
     private String username;

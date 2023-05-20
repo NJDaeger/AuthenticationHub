@@ -1,6 +1,13 @@
 package com.njdaeger.authenticationhub.discord;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 public record DiscordUserProfile(String snowflake, String username, String discriminator) {
+
+    public String decodedUsername() {
+        return new String(Base64.getDecoder().decode(username), StandardCharsets.UTF_8);
+    }
 
     @Override
     public boolean equals(Object obj) {

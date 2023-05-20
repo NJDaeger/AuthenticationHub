@@ -42,7 +42,7 @@ public final class AuthenticationHub extends JavaPlugin {
         database.createDatabase();
         this.registry = new ApplicationRegistry(this);
         //Starting the webserver
-        this.webapp = new WebApplication(this, config, registry);
+        if (config.enableWebServer()) this.webapp = new WebApplication(this, config, registry);
 
         //Registering command
         try {
@@ -66,7 +66,7 @@ public final class AuthenticationHub extends JavaPlugin {
     public void onDisable() {
         database.save();
         database.close();
-        webapp.getWebService().stop();
+        if (config.enableWebServer()) webapp.getWebService().stop();
         registry = null;
     }
 

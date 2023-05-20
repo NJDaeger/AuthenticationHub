@@ -138,7 +138,7 @@ public class PatreonApplication extends Application<PatreonUser> {
         var id = resolvePatronId(body.get("access_token").getAsString());
         var pledge = campaignId != -1 ? resolvePatronPledge(getConnection(campaignOwner), id) : 0;
         database.saveUserConnection(this, userId, new PatreonUser(body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), body.get("scope").getAsString(), id, pledge));
-
+        Bukkit.getLogger().info("Callback handled for " + userId.toString() + " - pledge is " + pledge + " cents");
         //below is for initial application setup
         if (campaignId == -1 && campaignOwner.equals(userId)) {
             Bukkit.getLogger().info("Completing setup for Patreon application...");

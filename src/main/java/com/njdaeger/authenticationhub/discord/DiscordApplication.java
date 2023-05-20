@@ -13,11 +13,15 @@ import org.bukkit.plugin.Plugin;
 import spark.Request;
 
 import java.io.IOException;
+import java.net.CookieHandler;
+import java.net.CookieManager;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +47,7 @@ public class DiscordApplication extends Application<DiscordUser> {
 
     public DiscordApplication(Plugin plugin) {
         super(plugin);
+        CookieHandler.setDefault(new CookieManager());
         Configuration config = getAppConfig();
         if (!config.contains("clientId")) config.set("clientId", "");
         if (!config.contains("clientSecret")) config.set("clientSecret", "");
@@ -85,7 +90,7 @@ public class DiscordApplication extends Application<DiscordUser> {
 
     @Override
     public String getConnectionUrl(AuthSession session) {
-        return "https://discord.com/api/v10/oauth2/authorize" +
+        return "https://discord.com/oauth2/authorize" +
                 "?response_type=code" +
                 "&client_id=" + clientId +
                 "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback") +
@@ -102,7 +107,7 @@ public class DiscordApplication extends Application<DiscordUser> {
         String reqBody = "code=" + code + "&grant_type=authorization_code&client_id=" + clientId + "&client_secret=" + clientSecret + "&redirect_uri=" + URLEncoder.encode(authHubConfig.getHubUrl() + "callback");
         HttpClient client = HttpClient.newHttpClient();
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://discord.com/api/v10/oauth2/token"))
+                .uri(URI.create("https://discord.com/api/oauth2/token"))
                 .POST(HttpRequest.BodyPublishers.ofString(reqBody))
                 .setHeader("Content-Type", "application/x-www-form-urlencoded")
                 .header("Accept", "application/json")
@@ -116,7 +121,12 @@ public class DiscordApplication extends Application<DiscordUser> {
         var refresh_token = body.get("refresh_token").getAsString();
         var scope = body.get("scope").getAsString();
         var profile = resolveDiscordUserProfile(accessToken);
-        database.saveUserConnection(this, userId, new DiscordUser(refresh_token, accessToken, expiresInHowManySeconds*1000 + System.currentTimeMillis(), tokenType, scope, profile.snowflake(), profile.username(), profile.discriminator()));
+        if (profile == null) {
+            Bukkit.getLogger().warning("Could not find discord user profile. Aborting saving user connection.");
+            return;
+        }
+        database.saveUserConnection(this, userId, new DiscordUser(refresh_token, accessToken, expiresInHowManySeconds* 1000L + System.currentTimeMillis(), tokenType, scope, profile.snowflake(), profile.username(), profile.discriminator()));
+        Bukkit.getLogger().info("Discord callback handled for " + userId.toString() + " - discord user is " + profile.decodedUsername() + "#" + profile.discriminator());
         userProfiles.put(userId, profile);
 
     }
@@ -158,12 +168,12 @@ public class DiscordApplication extends Application<DiscordUser> {
             Bukkit.getLogger().info("No Discord profile cached for user " + userId + ", fetching from Discord.");
         } else {
             var cached = userProfiles.get(userId);
-            Bukkit.getLogger().info("Cached Discord profile for user " + userId + " is " + cached.username() + "#" + cached.discriminator() + " ID: " + cached.snowflake() + ". Updating from Discord.");
+            Bukkit.getLogger().info("Cached Discord profile for user " + userId + " is " + new String(Base64.getDecoder().decode(cached.username()), StandardCharsets.UTF_8) + "#" + cached.discriminator() + " ID: " + cached.snowflake() + ". Updating from Discord.");
         }
         var profile = resolveDiscordUserProfile(getConnection(userId).getAccessToken());
         userProfiles.put(userId, profile);
         if (!profile.equals(user.getDiscordProfile())) {
-            user.updateUsernameAndDisc(userId, profile.username(), profile.discriminator());
+            user.updateUsernameAndDisc(userId, Base64.getEncoder().encodeToString(profile.username().getBytes(StandardCharsets.UTF_8)), profile.discriminator());
             database.saveUserConnection(this, userId, user);
         }
         gettingDiscordUserProfile.remove(userId);
@@ -175,52 +185,66 @@ public class DiscordApplication extends Application<DiscordUser> {
     }
 
     public void refreshUserToken(UUID userId, DiscordUser user) {
+        try {
+            Base64.getDecoder().decode(user.getDiscordProfile().username());
+        } catch (IllegalArgumentException ignored) {
+            Bukkit.getLogger().warning("Unable to refresh user token. " + user.getDiscordProfile().username() + " is not a valid base64 string.");
+        }
         refreshUserToken(userId, user, (u, d) -> {});
     }
 
     public void refreshUserToken(UUID userId, DiscordUser user, BiConsumer<UUID, Boolean> onComplete) {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            plugin.getLogger().info("Refreshing Discord connection for " + userId);
-            currentlyRefreshing.add(userId);
-            String reqBody = "grant_type=refresh_token&refresh_token=" + user.getRefreshToken() + "&client_id=" + clientId + "&client_secret=" + clientSecret;
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://www.discord.com/api/v10/oauth2/token"))
-                    .POST(HttpRequest.BodyPublishers.ofString(reqBody))
-                    .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                    .build();
-            HttpResponse<String> response;
             try {
-                response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
-                onComplete.accept(userId, false);
+                plugin.getLogger().info("Refreshing Discord connection for " + userId);
+                currentlyRefreshing.add(userId);
+                String reqBody = "grant_type=refresh_token&refresh_token=" + user.getRefreshToken() + "&client_id=" + clientId + "&client_secret=" + clientSecret;
+
+                HttpClient client = HttpClient.newBuilder().cookieHandler(CookieHandler.getDefault()).build();
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://discord.com/api/oauth2/token"))
+                        .POST(HttpRequest.BodyPublishers.ofString(reqBody))
+                        .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                        .build();
+                HttpResponse<String> response;
+                try {
+                    response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                } catch (IOException | InterruptedException e) {
+                    e.printStackTrace();
+                    onComplete.accept(userId, false);
+                    currentlyRefreshing.remove(userId);
+                    return;
+                }
+                var body = new JsonParser().parse(response.body()).getAsJsonObject();
+                var accessToken = body.get("access_token").getAsString();
+                var tokenType = body.get("token_type").getAsString();
+                var expiresInHowManySeconds = body.get("expires_in").getAsInt();
+                var refresh_token = body.get("refresh_token").getAsString();
+                String username;
+                String discrim;
+                var profile = resolveDiscordUserProfile(accessToken);
+                if (profile == null) {
+                    onComplete.accept(userId, false);
+                    plugin.getLogger().warning("There was a problem resolving the Discord user profile of: " + userId + "... Using old username and discriminator data.");
+                    username = user.getDiscordProfile().username();//should be in base 64
+                    discrim = user.getDiscordProfile().discriminator();
+                } else {
+                    username = profile.username();//should be in base 64
+                    discrim = profile.discriminator();
+                }
+                user.updateUser(userId, refresh_token, accessToken, expiresInHowManySeconds * 1000L + System.currentTimeMillis(), tokenType, user.getScope(), username, discrim);
+                database.saveUserConnection(this, userId, user);
+                userProfiles.put(userId, user.getDiscordProfile());
+                plugin.getLogger().info("Refreshed Discord connection for " + userId);
                 currentlyRefreshing.remove(userId);
-                return;
+                onComplete.accept(userId, true);
+            } catch (Exception e) {
+                e.printStackTrace();
+                currentlyRefreshing.remove(userId);
+                plugin.getLogger().severe("An error occurred when refreshing Discord connection for " + userId);
             }
-            var body = new JsonParser().parse(response.body()).getAsJsonObject();
-            var accessToken = body.get("access_token").getAsString();
-            var tokenType = body.get("token_type").getAsString();
-            var expiresInHowManySeconds = body.get("expires_in").getAsInt();
-            var refresh_token = body.get("refresh_token").getAsString();
-            String username;
-            String discrim;
-            var profile = resolveDiscordUserProfile(accessToken);
-            if (profile == null) {
-                onComplete.accept(userId, false);
-                plugin.getLogger().warning("There was a problem resolving the Discord user profile of: " + userId + "... Using old username and discriminator data.");
-                username = user.getDiscordProfile().username();
-                discrim = user.getDiscordProfile().discriminator();
-            } else {
-                username = profile.username();
-                discrim = profile.discriminator();
-            }
-            user.updateUser(userId, refresh_token, accessToken, expiresInHowManySeconds * 1000L + System.currentTimeMillis(), tokenType, user.getScope(), username, discrim);
-            database.saveUserConnection(this, userId, user);
-            userProfiles.put(userId, user.getDiscordProfile());
-            plugin.getLogger().info("Refreshed Discord connection for " + userId);
-            currentlyRefreshing.remove(userId);
-            onComplete.accept(userId, true);
+
         });
     }
 
@@ -234,7 +258,7 @@ public class DiscordApplication extends Application<DiscordUser> {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             var body = new JsonParser().parse(response.body()).getAsJsonObject();
-            return new DiscordUserProfile(body.get("id").getAsString(), body.get("username").getAsString(), body.get("discriminator").getAsString());
+            return new DiscordUserProfile(body.get("id").getAsString(), Base64.getEncoder().encodeToString( body.get("username").getAsString().getBytes(StandardCharsets.UTF_8)), body.get("discriminator").getAsString());
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }

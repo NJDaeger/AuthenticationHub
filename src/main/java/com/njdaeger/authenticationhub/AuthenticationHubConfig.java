@@ -18,6 +18,14 @@ public class AuthenticationHubConfig {
     }
 
     /**
+     * Whether to enable the webserver or not. If not defined, defaults to true.
+     * @return True if the webserver should be enabled, false otherwise.
+     */
+    public boolean enableWebServer() {
+        return config.getBoolean("enable-webserver", true);
+    }
+
+    /**
      * Get the storage handler currently enabled for Authentication Hub.
      * @return The storage handler
      */
