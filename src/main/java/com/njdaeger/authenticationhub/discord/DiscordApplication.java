@@ -99,7 +99,7 @@ public class DiscordApplication extends Application<DiscordUser> {
     }
 
     @Override
-    public void handleCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException {
+    public void handleConnectCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException {
         String code = req.queryParamsSafe("code");
         String state = req.queryParamsSafe("state");
         if (code == null || state == null) throw new RequestException("App Error: Discord response was not in the correct format.");
@@ -129,6 +129,33 @@ public class DiscordApplication extends Application<DiscordUser> {
         Bukkit.getLogger().info("Discord callback handled for " + userId.toString() + " - discord user is " + profile.decodedUsername() + "#" + profile.discriminator());
         userProfiles.put(userId, profile);
 
+    }
+
+    @Override
+    public String getDisconnectUrl(AuthSession session) {
+        return "/disconnect?state=" + session.getEncodedState(this);
+    }
+
+    @Override
+    public void handleDisconnectCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException {
+        String state = req.queryParamsSafe("state");
+        if (state == null) throw new RequestException("App Error: Discord response was not in the correct format.");
+
+        HttpClient client = HttpClient.newHttpClient();
+        String reqBody = "token=" + getConnection(userId).getAccessToken() + "&client_id=" + clientId + "&client_secret=" + clientSecret;
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://discord.com/api/oauth2/token/revoke"))
+                .POST(HttpRequest.BodyPublishers.ofString(reqBody))
+                .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                .header("Accept", "application/json")
+                .build();
+
+        HttpResponse<String> resp = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        var body = new JsonParser().parse(resp.body()).getAsJsonObject();
+        System.out.println(body.toString());
+
+        database.removeUserConnection(this, userId);
     }
 
     @Override

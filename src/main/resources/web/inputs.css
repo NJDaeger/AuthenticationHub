@@ -13,7 +13,7 @@
 .prime-button[data-type="connected"] {
     --focus-outline-color: #40c74b55;
     --focus-background-color: #36ad40ff;
-    --hover-background-color: #40c74bff;
+    --hover-background-color: rgb(199, 64, 64);/* red because it is a disconnect when hovered */
     --background-color: #36ad40ff;
 }
 

@@ -65,6 +65,7 @@ public class WebApplication {
         getInfo();
         postAuthorize();
         getCallback();
+        getDisconnect();
         getApplications();
     }
 
@@ -109,7 +110,8 @@ public class WebApplication {
                     throw new RequestException("Session Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
 
                 var result = new JsonArray();
-                registry.getApplications().forEach(application -> result.add(createObject("name", application.getApplicationName(), "connection", !application.hasConnection(state.uuid()) ? application.getConnectionUrl(session) : null)));
+                // registry.getApplications().forEach(application -> result.add(createObject("name", application.getApplicationName(), "status", application.hasConnection(state.uuid()) ? "connected" : "disconnected", "connection", !application.hasConnection(state.uuid()) ? application.getConnectionUrl(session) : null)));
+                registry.getApplications().forEach(application -> result.add(createObject("name", application.getApplicationName(), "connection", !application.hasConnection(state.uuid()) ? application.getConnectionUrl(session) : application.getDisconnectUrl(session), "status", application.hasConnection(state.uuid()) ? "connected" : "disconnected")));
                 return createObject("apps", result, "status", OK);
             } catch (RequestException e) {
                 res.header("content-type", "application/json");
@@ -153,7 +155,7 @@ public class WebApplication {
                     throw new RequestException("Session Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
 
                 var application = registry.getApplications().stream().filter(app -> app.getUniqueName().equals(state.application())).findFirst();
-                if (application.isPresent()) application.get().handleCallback(req, state.uuid(), session);
+                if (application.isPresent()) application.get().handleConnectCallback(req, state.uuid(), session);
                 else throw new RequestException("State Error: Bad encoded application.");
 
                 //Redirect them to the main page with the state having no application defined.
@@ -272,6 +274,10 @@ public class WebApplication {
                 res.header("content-type", "application/json");
                 res.status(OK);
                 if (!verificationMap.containsKey(uuid)) verificationMap.put(uuid, new AuthSession(uuid, req.ip(), plugin));
+                else {
+                    AuthSession authSession = verificationMap.get(uuid);
+                    if (authSession.getTimeRemaining() <=0) verificationMap.put(uuid, new AuthSession(uuid, req.ip(), plugin));
+                }
                 return createObject("message", "Success! Please provide your authorization code next.", "status", OK);
             } catch (RequestException e) {
                 if (uuid != null) verificationMap.remove(uuid);
@@ -290,6 +296,52 @@ public class WebApplication {
             }
         });
     }
+
+    //create a disconnect route
+    public void getDisconnect() {
+        get("/disconnect", "application/json", (req, res) -> {
+            try {
+                var state = getState(req);
+
+                //If the user has not been registered to the database, we dont want to do anything else.
+                if (plugin.getDatabase().getUserId(state.uuid()) == -1)
+                    throw new RequestException("Session Error: User has not been registered.", UNAUTHORIZED);
+
+                var session = getAuthSessionSafe(state.uuid());
+
+                //If the user is trying to disconnect from another location than what their auth session remembered, they will not be allowed to do this
+                if (!session.getIpAddress().equals(req.ip()) || !session.getIpAddress().equals(state.ip()) || !session.isAuthorized())
+                    throw new RequestException("Session Error: You are not authorized to do that.", UNAUTHORIZED);
+
+                //If the user does not have an auth token at this point, they have likely not been verified yet. Normally shouldn't happen.
+                if (session.getAuthToken() == null)
+                    throw new RequestException("Session Error: You do not have an AuthCode.", UNAUTHORIZED);
+
+                //If the auth codes do not match from the encoded state and the session, bad.
+                if (!session.getAuthToken().equals(state.authCode()))
+                    throw new RequestException("Session Error: Your AuthCode did not match your provided auth code.", UNAUTHORIZED);
+
+                // Disconnect the application
+                var application = registry.getApplications().stream().filter(app -> app.getUniqueName().equals(state.application())).findFirst();
+                if (application.isPresent()) application.get().handleDisconnectCallback(req, state.uuid(), session);
+                else throw new RequestException("State Error: Bad encoded application.");
+
+                res.redirect("/?state=" + session.getEncodedState(null));
+                return null;
+            } catch (RequestException e) {
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
+            } catch (Exception e) {
+                res.header("content-type", "application/json");
+                res.status(SERVER_ERROR);
+                res.redirect("/");
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
+            }
+        });
+    }
+
 
     /**
      * Gets an auth session from a given UUID.

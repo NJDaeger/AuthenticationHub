@@ -42,6 +42,37 @@ p.open {
     max-width: 90%;
 }
 
+.application-button-text {
+    display: inline-flex;
+    height: 100%;
+    justify-content: space-evenly;
+}
+
+.app-name {
+    transform: rotateX(0deg);
+    transform-origin: bottom;
+    position: absolute;
+    transition-duration: .25s;
+}
+
+.click-action {
+    transform: rotateX(90deg);
+    transform-origin: top;
+    position: absolute;
+    transition-duration: .25s;
+    opacity: 0;
+}
+
+.prime-button:hover .app-name {
+    transform: rotateX(90deg);
+    opacity: 0;
+}
+
+.prime-button:hover .click-action {
+    transform: rotateX(0deg);
+    opacity: 1;
+}
+
 /*
 
  #       ####    ##   #####  # #    #  ####     #####    ##   #####

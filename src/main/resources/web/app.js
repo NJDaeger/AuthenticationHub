@@ -353,17 +353,32 @@ function generateConnectionButtons(connections) {
         var appContainerDiv = document.createElement('div');
         appContainerDiv.classList.add("col-xxl-6", "my-2", "prime-button", "ripple");
         appContainerDiv.addEventListener("click", startRipple);
-        if (!connection.connection) appContainerDiv.dataset.type = "connected";
+
+        var status = connection.status;
+
+        if (status === "connected") appContainerDiv.dataset.type = "connected";
         var appButton = document.createElement('a');
         appButton.id = connection.name;
-        //if the connection property is null, that means the user has already connected to that service.
-        if (!connection.connection) {
-            appButton.innerHTML = connection.name + `<span><i class="bi bi-check2"></i></span>`;
-        }
-        else {
-            appButton.innerHTML = connection.name;
-            appButton.href = connection.connection;
-        }
+        var status = connection.status;
+
+        var innerTextDiv = document.createElement('div');
+        innerTextDiv.classList.add("application-button-text");
+        
+        var appNameSpan = document.createElement('span');
+        appNameSpan.classList.add("app-name");
+        if (status === "connected") appNameSpan.innerHTML = connection.name + `<span><i class="bi bi-check2"></i></span>`;
+        else appNameSpan.innerHTML = connection.name;
+
+        var actionSpan = document.createElement('span');
+        actionSpan.classList.add("click-action");
+        if (status === "connected") actionSpan.innerHTML = "Disconnect from " + connection.name;
+        else actionSpan.innerHTML = "Connect to " + connection.name;
+
+        appButton.href = connection.connection;
+
+        innerTextDiv.append(appNameSpan);
+        innerTextDiv.append(actionSpan);
+        appButton.append(innerTextDiv);
         appContainerDiv.append(appButton);
         appList.append(appContainerDiv);
     });

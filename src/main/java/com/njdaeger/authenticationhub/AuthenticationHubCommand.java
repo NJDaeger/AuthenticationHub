@@ -113,7 +113,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
         //If the session is authorized, ask the user if they want to reset their session instead.
         if (session.isAuthorized()) {
             var message = builder.append("Your session is already authorized. Would you like to reset your session? ").color(ChatColor.DARK_AQUA)
-                    .append("[Reset]").color(ChatColor.RESET).underlined(true).bold(true)
+                    .append("\n[Reset]").color(ChatColor.DARK_AQUA).underlined(true).bold(true)
                     .event(new ClickEvent(RUN_COMMAND, "/authhub reset"))
                     .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Reset session").color(ChatColor.GRAY).create())))
                     .create();

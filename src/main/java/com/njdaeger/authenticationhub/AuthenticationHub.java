@@ -5,6 +5,7 @@ import com.njdaeger.authenticationhub.database.IDatabase;
 import com.njdaeger.authenticationhub.discord.DiscordApplication;
 import com.njdaeger.authenticationhub.patreon.PatreonApplication;
 import com.njdaeger.authenticationhub.patreon.PatreonListener;
+import com.njdaeger.authenticationhub.test.TestApplication;
 import com.njdaeger.authenticationhub.web.WebApplication;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
@@ -58,8 +59,9 @@ public final class AuthenticationHub extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new AuthenticationHubListeners(webapp), this);
         Bukkit.getServicesManager().register(ApplicationRegistry.class, registry, this, ServicePriority.Normal);
 
-        getApplicationRegistry().addApplication(new PatreonApplication(this));
+//        getApplicationRegistry().addApplication(new PatreonApplication(this));
         getApplicationRegistry().addApplication(new DiscordApplication(this));
+        if (config.enableTestApplication()) getApplicationRegistry().addApplication(new TestApplication(this));
     }
 
     @Override

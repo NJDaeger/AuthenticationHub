@@ -32,3 +32,14 @@ db-prefix:
 # Internal webserver port
 #
 webserver-port: 4567
+
+#
+# Enable the internal webserver. When false, the webserver will not be ran. Any connection requirements will still be enforced- turning this off
+# assumes you have a webserver running elsewhere that handles the requests, and this just points towards that server's database.
+#
+enable-webserver: true
+
+#
+# Enable the test application. This is a simple application that can be used to test the webserver and authentication hub.
+#
+enable-test-application: false

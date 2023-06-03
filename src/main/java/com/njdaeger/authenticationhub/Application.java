@@ -1,6 +1,5 @@
 package com.njdaeger.authenticationhub;
 
-import com.google.common.collect.Maps;
 import com.njdaeger.authenticationhub.database.IDatabase;
 import com.njdaeger.authenticationhub.database.ISavedConnection;
 import com.njdaeger.authenticationhub.database.SaveData;
@@ -15,7 +14,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 
@@ -77,16 +75,42 @@ public abstract class Application<T extends ISavedConnection> {
     public abstract String getConnectionUrl(AuthSession session);
 
     /**
+     * Get the URL the AuthSession should use when attempting to disconnect this application.
+     *
+     * This is used on the web interface as a link when the user clicks the application button
+     *
+     * @param session The AuthSession trying to disconnect from this application
+     * @return The disconnection URL
+     */
+    public abstract String getDisconnectUrl(AuthSession session);
+
+    /**
      * What this application runs when processing a callback request specified in the connection URL above.
      * @param req The request
-     * @param userId The UUID of the user whose request is being process
+     * @param userId The UUID of the user whose request is being processed
      * @param session The AuthSession of the user whose request is being processed
      * @throws RequestException If there was an error processing this request.
      * @throws IOException
      * @throws InterruptedException
      */
-    public abstract void handleCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException;
+    public abstract void handleConnectCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException;
 
+    /**
+     * What this application runs when processing a callback request specified in the disconnection URL above.
+     * @param req The request
+     * @param userId The UUID of the user whose request is being processed
+     * @param session The AuthSession of the user whose request is being processed
+     * @throws RequestException If there was an error processing this request.
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public abstract void handleDisconnectCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException;
+
+    /**
+     * Whether the user specified has a connection to this application.
+     * @param user The user to check
+     * @return True if the user has a connection to this application, false otherwise.
+     */
     public boolean hasConnection(UUID user) {
         return database.getUserId(user) != -1 && database.getUserConnections(user).contains(database.getApplicationId(this));
     }

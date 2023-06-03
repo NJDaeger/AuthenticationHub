@@ -121,7 +121,7 @@ public class PatreonApplication extends Application<PatreonUser> {
     }
 
     @Override
-    public void handleCallback(Request req, UUID userId, AuthSession session) throws IOException, InterruptedException {
+    public void handleConnectCallback(Request req, UUID userId, AuthSession session) throws IOException, InterruptedException {
         String code = req.queryParamsSafe("code");
         String state = req.queryParamsSafe("state");
         if (code == null || state == null) throw new RequestException("App Error: Patreon response was not in the correct format.");
@@ -150,6 +150,30 @@ public class PatreonApplication extends Application<PatreonUser> {
             Bukkit.getLogger().info("Patreon application setup is now complete.");
         }
         pledgeStatus.put(userId, pledge);
+    }
+
+    @Override
+    public String getDisconnectUrl(AuthSession session) {
+        return "/disconnect?state=" + session.getEncodedState(this);
+    }
+
+    @Override
+    public void handleDisconnectCallback(Request req, UUID userId, AuthSession session) throws RequestException, IOException, InterruptedException {
+        String state = req.queryParamsSafe("state");
+        if (state == null) throw new RequestException("App Error: Patreon response was not in the correct format.");
+
+        HttpClient client = HttpClient.newHttpClient();
+        String reqBody = "token=" + getConnection(userId).getAccessToken() + "&client_id=" + clientId + "&client_secret=" + clientSecret;
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://www.patreon.com/api/oauth2/revoke?" + reqBody))
+                .POST(HttpRequest.BodyPublishers.ofString(""))
+                .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                .build();
+        HttpResponse<String> resp = client.send(request, HttpResponse.BodyHandlers.ofString());
+        var body = new JsonParser().parse(resp.body()).getAsJsonObject();
+        System.out.println(body.toString());
+
+        database.removeUserConnection(this, userId);
     }
 
     @Override

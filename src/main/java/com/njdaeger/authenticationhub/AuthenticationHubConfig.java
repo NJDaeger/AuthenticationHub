@@ -54,6 +54,10 @@ public class AuthenticationHubConfig {
         return timeoutSeconds * 1000;
     }
 
+    public boolean enableTestApplication() {
+        return config.getBoolean("enable-test-application", false);
+    }
+
     /**
      * Gets the URL that opens the hub webpage.
      * @return The hub url
