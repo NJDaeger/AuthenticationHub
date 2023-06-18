@@ -29,7 +29,7 @@ import static org.bukkit.ChatColor.*;
 public class PatreonApplication extends Application<PatreonUser> {
 
     private final String clientId;
-    private final int requiredPledge;
+//    private final int requiredPledge;
     private final String clientSecret;
     private final String patreonUrl;
     private final UUID campaignOwner;
@@ -43,14 +43,15 @@ public class PatreonApplication extends Application<PatreonUser> {
         Configuration config = getAppConfig();
         if (!config.contains("clientId")) config.set("clientId", "");
         if (!config.contains("clientSecret")) config.set("clientSecret", "");
-        if (!config.contains("requiredPledge")) config.set("requiredPledge", -1);
+//        if (!config.contains("requiredPledge")) config.set("requiredPledge", -1);
         if (!config.contains("campaignOwnerUuid")) config.set("campaignOwnerUuid", "");
         if (!config.contains("patreonUrl")) config.set("patreonUrl", "");
+
         if (!config.contains("messages.expiredUser")) config.set("messages.expiredUser", RED + "Your Patreon account verification has expired. Please re-verify your account by visiting " + GRAY + UNDERLINE + AuthenticationHub.getInstance().getAuthHubConfig().getHubUrl());
         if (!config.contains("messages.refreshingUserToken")) config.set("messages.refreshingUserToken", DARK_AQUA + "Your Patreon account is currently being re-verified. Please wait a few seconds and try again.");
         if (!config.contains("messages.gettingPledgeStatus")) config.set("messages.gettingPledgeStatus", DARK_AQUA + "We are verifying your Patreon pledge status. Please wait a few seconds and try again.");
         if (!config.contains("messages.notAPatron")) config.set("messages.notAPatron", RED + "You are not whitelisted or an Architect patron on this server.");
-        if (!config.contains("messages.notEnoughPledged")) config.set("messages.notEnoughPledged", RED + "Upgrade your pledging plan a higher tier to access this server.");
+//        if (!config.contains("messages.notEnoughPledged")) config.set("messages.notEnoughPledged", RED + "Upgrade your pledging plan a higher tier to access this server.");
 
         try {
             ((YamlConfiguration)config).save(appConfigFile);
@@ -65,11 +66,10 @@ public class PatreonApplication extends Application<PatreonUser> {
         var campaignOwnerUuid = config.getString("campaignOwnerUuid", "");
         this.campaignOwner = !campaignOwnerUuid.isEmpty() ? UUID.fromString(campaignOwnerUuid) : null;
         this.patreonUrl = config.getString("patreonUrl", "");
-        this.requiredPledge = config.getInt("requiredPledge", -1);
 
         Bukkit.getPluginManager().registerEvents(new PatreonListener(this), plugin);
 
-        if (clientId.isEmpty() || requiredPledge < 0 || clientSecret.isEmpty() || patreonUrl.isEmpty() || campaignOwner == null) {
+        if (clientId.isEmpty() || clientSecret.isEmpty() || patreonUrl.isEmpty() || campaignOwner == null) {
             Bukkit.getLogger().warning("Make sure you have the fields 'clientId', 'clientSecret', 'requiredPledge', 'campaignOwnerUuid', and 'patreonUrl' set in your patreon.yml for the Patreon application to start up.");
             canBeLoaded = false;
             return;
@@ -88,7 +88,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                     Bukkit.getLogger().warning("Campaign owner connection is almost expired, refreshing.");
                     refreshUserToken(campaignOwner, owner);
                 }
-                Bukkit.getLogger().info("Patreon application loaded. Campaign Owner: " + campaignOwner + ", Campaign ID: " + campaignId + ", Required Pledge: " + requiredPledge + " cents.");
+                Bukkit.getLogger().info("Patreon application loaded. Campaign Owner: " + campaignOwner + ", Campaign ID: " + campaignId);
                 Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
                     Bukkit.getLogger().info("Checking all Patreon User refresh statuses...");
                     var users = database.getConnections(this);
@@ -185,14 +185,6 @@ public class PatreonApplication extends Application<PatreonUser> {
     public PatreonUser getConnection(UUID user) {
         if (!hasConnection(user)) return null;
         return database.getUserConnection(this, user);
-    }
-
-    /**
-     * Gets the required amount of cents to be allowed to join the server.
-     * @return The required amount of cents to be allowed to join the server.
-     */
-    public int getRequiredPledge() {
-        return requiredPledge;
     }
 
     /**

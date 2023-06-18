@@ -1,6 +1,5 @@
 package com.njdaeger.authenticationhub.discord;
 
-import com.njdaeger.authenticationhub.ConnectionRequirement;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.event.EventHandler;
@@ -18,8 +17,8 @@ public class DiscordListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLogin(PlayerLoginEvent e) {
-        DiscordUser user = application.getConnection(e.getPlayer().getUniqueId());
-        var conReq = ConnectionRequirement.getRequirementOrDefault(application.getAppConfig().getString("require-connection-for"), ConnectionRequirement.NONE);
+        var user = application.getConnection(e.getPlayer().getUniqueId());
+        var conReq = application.getConnectionRequirement();
 
         if (conReq.isRequired(e.getPlayer())) {
             if (user == null) {

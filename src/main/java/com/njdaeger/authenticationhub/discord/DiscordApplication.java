@@ -51,10 +51,7 @@ public class DiscordApplication extends Application<DiscordUser> {
         Configuration config = getAppConfig();
         if (!config.contains("clientId")) config.set("clientId", "");
         if (!config.contains("clientSecret")) config.set("clientSecret", "");
-        if (!config.contains("require-connection-for")) config.set("require-connection-for", ConnectionRequirement.NONE.getRequirementName());
-        if (ConnectionRequirement.getRequirement(config.getString("require-connection-for")) == null) {
-            plugin.getLogger().warning("No 'require-connection-for' property is set in discord.yml, defaulting to NONE.");
-        }
+
         if (!config.contains("messages.expiredUser")) config.set("messages.expiredUser", RED + "Your Discord account verification has expired. Please re-verify your account by visiting " + GRAY + UNDERLINE + AuthenticationHub.getInstance().getAuthHubConfig().getHubUrl());
         if (!config.contains("messages.refreshingUserToken")) config.set("messages.refreshingUserToken", DARK_AQUA + "Your Discord account is currently being re-verified. Please wait a few seconds and try again.");
         if (!config.contains("messages.notConnected")) config.set("messages.notConnected", RED + "Your Discord account is not linked to your Minecraft account. Before you can join, please verify your account by visiting " + GRAY + UNDERLINE + AuthenticationHub.getInstance().getAuthHubConfig().getHubUrl());

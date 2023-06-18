@@ -358,6 +358,7 @@ public class WebApplication {
      * @return True if the auth session was removed, false if there was no auth session removed.
      */
     public boolean removeSession(UUID userId) {
+        plugin.removeLastLogin(userId);
         return verificationMap.remove(userId) != null;
     }
 

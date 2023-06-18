@@ -6,6 +6,7 @@ import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
+import java.util.List;
 
 public class AuthenticationHubConfig {
 
@@ -52,10 +53,6 @@ public class AuthenticationHubConfig {
             plugin.getLogger().warning("The value for \"session-timeout\" could either not be parsed, or is less than 60. Defaulting to 10 minutes.");
         }
         return timeoutSeconds * 1000;
-    }
-
-    public boolean enableTestApplication() {
-        return config.getBoolean("enable-test-application", false);
     }
 
     /**
@@ -183,6 +180,14 @@ public class AuthenticationHubConfig {
 //            }
         }
         this.config = YamlConfiguration.loadConfiguration(appConfigFile);
+    }
+
+    /**
+     * Get the list of enabled app integrations.
+     * @return The list of enabled integrations.
+     */
+    public List<String> getEnabledIntegrations() {
+        return config.getStringList("enabled-integrations");
     }
 
     /**

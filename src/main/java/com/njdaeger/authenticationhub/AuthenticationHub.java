@@ -21,6 +21,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.Collections;
+import java.util.UUID;
 
 /**
  * Main plugin class
@@ -29,6 +30,7 @@ public final class AuthenticationHub extends JavaPlugin {
 
     private WebApplication webapp = null;
     private AuthenticationHubConfig config;
+    private AuthenticationHubListeners listeners;
     private ApplicationRegistry registry;
     private IDatabase database;
     private static AuthenticationHub instance;
@@ -56,12 +58,15 @@ public final class AuthenticationHub extends JavaPlugin {
         }
 
         //Registering event listener
-        Bukkit.getPluginManager().registerEvents(new AuthenticationHubListeners(webapp), this);
+        this.listeners = new AuthenticationHubListeners(this, webapp);
+        Bukkit.getPluginManager().registerEvents(listeners, this);
         Bukkit.getServicesManager().register(ApplicationRegistry.class, registry, this, ServicePriority.Normal);
 
-//        getApplicationRegistry().addApplication(new PatreonApplication(this));
-        getApplicationRegistry().addApplication(new DiscordApplication(this));
-        if (config.enableTestApplication()) getApplicationRegistry().addApplication(new TestApplication(this));
+        config.getEnabledIntegrations().forEach(name -> {
+            if (name.equalsIgnoreCase("patreon")) getApplicationRegistry().addApplication(new PatreonApplication(this));
+            if (name.equalsIgnoreCase("discord")) getApplicationRegistry().addApplication(new DiscordApplication(this));
+            if (name.equalsIgnoreCase("test")) getApplicationRegistry().addApplication(new TestApplication(this));
+        });
     }
 
     @Override
@@ -140,4 +145,9 @@ public final class AuthenticationHub extends JavaPlugin {
         }
         return file;
     }
+
+    public void removeLastLogin(UUID uuid) {
+        listeners.removeLastLogin(uuid);
+    }
+
 }

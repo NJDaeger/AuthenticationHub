@@ -26,6 +26,7 @@ public abstract class Application<T extends ISavedConnection> {
     protected File appConfigFile;
     private Configuration appConfig;
     protected AuthenticationHubConfig authHubConfig;
+    private ConnectionRequirement connectionRequirement;
     protected Boolean canBeLoaded = null;
     protected Plugin plugin;
 
@@ -43,6 +44,12 @@ public abstract class Application<T extends ISavedConnection> {
             this.authHubConfig = AuthenticationHub.getInstance().getAuthHubConfig();
             if (database.getApplicationId(this) == -1) database.createApplication(this);
             this.plugin = plugin;
+            if (ConnectionRequirement.getRequirement(appConfig.getString("require-connection-for")) == null) {
+                this.connectionRequirement = ConnectionRequirement.NONE;
+                appConfig.set("require-connection-for", ConnectionRequirement.NONE.getRequirementName());
+                plugin.getLogger().warning("No 'require-connection-for' property is set in discord.yml, defaulting to NONE.");
+            } else this.connectionRequirement = ConnectionRequirement.getRequirement(appConfig.getString("require-connection-for"));
+
             logger.info("Loaded application " + getUniqueName());
         }
     }
@@ -185,6 +192,22 @@ public abstract class Application<T extends ISavedConnection> {
     public Configuration getAppConfig() {
         if (appConfig == null) appConfig = createConfig();
         return appConfig;
+    }
+
+    /**
+     * Set the connection requirement for this application.
+     * @param requirement The connection requirement for this application.
+     */
+    public void setConnectionRequirement(ConnectionRequirement requirement) {
+        this.connectionRequirement = requirement;
+    }
+
+    /**
+     * Get the connection requirement for this application.
+     * @return The connection requirement for this application. Defualts to ConnectionRequirement.NONE
+     */
+    public ConnectionRequirement getConnectionRequirement() {
+        return connectionRequirement == null ? ConnectionRequirement.NONE : connectionRequirement;
     }
 
     /**

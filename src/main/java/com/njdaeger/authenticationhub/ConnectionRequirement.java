@@ -54,9 +54,9 @@ public class ConnectionRequirement {
     }
 
     /**
-     * Check whether the player is required to connect based on this connection requirement predicate.
+     * Check whether the player is required to connect to a given application based on this connection requirement predicate.
      * @param player The player to test
-     * @return True if the player is required to have a connection, false otherwise.
+     * @return True if the player is required to have a connection to this application, false otherwise.
      */
     public boolean isRequired(Player player) {
         return required.test(player);

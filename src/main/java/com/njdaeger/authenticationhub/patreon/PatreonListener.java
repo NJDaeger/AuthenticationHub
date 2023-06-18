@@ -16,61 +16,42 @@ public class PatreonListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onPlayerLogin(PlayerLoginEvent event) {
-        boolean whitelist = Bukkit.hasWhitelist();
-        PatreonUser user = application.getConnection(event.getPlayer().getUniqueId());
-        if (whitelist && Bukkit.getServer().getWhitelistedPlayers().stream().anyMatch(offlinePlayer -> offlinePlayer.getUniqueId().equals(event.getPlayer().getUniqueId()))) {
-            //if a user is whitelisted to the server, we dont care if they are a patron or not- if their token has expired, just tell them that they will need to relink, otherwise, just refresh their token
-            if (user != null) {
-                if (user.isExpired()) {
-                    event.getPlayer().sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.RESET + application.getAppConfig().getString("messages.expiredUser", "null"));
-                    application.removeConnection(event.getPlayer().getUniqueId());
-                    return;
-                }
-                if (user.isAlmostExpired()) {
-                    Bukkit.getLogger().info(user.getTimeUntilExpiration());
-                    application.refreshUserToken(event.getPlayer().getUniqueId(), user);
-                } else application.getPledgingAmountAsync(event.getPlayer().getUniqueId(), user);//caches the pledge amount
+    public void onPlayerLogin(PlayerLoginEvent e) {
+        var user = application.getConnection(e.getPlayer().getUniqueId());
+        var conReq = application.getConnectionRequirement();
+
+        if (conReq.isRequired(e.getPlayer())) {
+            if (user == null) {
+                e.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notConnected", "null"));
+                return;
+            } else if (user.isExpired()) {
+                e.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.expiredUser", "null"));
+                application.removeConnection(e.getPlayer().getUniqueId());
+                return;
+            } else if (user.isAlmostExpired()) {
+                Bukkit.getLogger().info(user.getTimeUntilExpiration());
+                application.refreshUserToken(e.getPlayer().getUniqueId(), user);
+                return;
+            } else application.getPledgingAmountAsync(e.getPlayer().getUniqueId(), user);
+
+            if (application.isRefreshingUserToken(e.getPlayer().getUniqueId())) {
+                e.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.refreshingUserToken", "null"));
+                return;
             }
-            return;
-        }
 
-        if (user == null) return;
+            if (application.isGettingPledgeStatus(e.getPlayer().getUniqueId())) {
+                e.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.gettingPledgeProfile", "null"));
+                return;
+            }
 
-        if (user.isExpired() && whitelist) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.expiredUser", "null"));
-            application.removeConnection(event.getPlayer().getUniqueId());
-            return;
-        }
-
-        if (application.isRefreshingUserToken(event.getPlayer().getUniqueId()) && whitelist) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.refreshingUserToken", "null"));
-            return;
-        }
-
-        //in theory, we could use the getPledgedAmount from the user object, but that can be misleading due to it not updating when its queried (eg. it could show as 0 cents pledged
-        // the first call, but after they join a second time, it updates to the proper amount since the amount updates upon a user joining the server).
-        // This way, we can get the exact pledging amount every time and ensure the user is aware when we are simply just refreshing the cached amount on our end.
-        var amount = application.getPledgingAmountAsync(event.getPlayer().getUniqueId(), user);
-
-        if ((application.isGettingPledgeStatus(event.getPlayer().getUniqueId()) || amount == 0) && whitelist) {//this means the application is still resolving the pledge status, we dont want to refresh the user token while this is occurring.
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.gettingPledgeStatus", "null"));
-            return;
-        }
-
-        if (amount == -1 && whitelist) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notAPatron", "null"));
-        } else if (amount < application.getRequiredPledge() && whitelist) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, application.getAppConfig().getString("messages.notEnoughPledge", "null"));
-        } else {
-            event.allow();
-            Bukkit.getLogger().info(event.getPlayer().getName() + " has logged in via Patreon with a pledge of " + amount + " cents.");
-        }
-
-        if (user.isAlmostExpired()) {
-            Bukkit.getLogger().info(user.getTimeUntilExpiration());
-            application.refreshUserToken(event.getPlayer().getUniqueId(), user);
+        } else if (user != null) {
+            if (user.isExpired()) {
+                e.getPlayer().sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.RESET + application.getAppConfig().getString("messages.expiredUser", "null"));
+                application.removeConnection(e.getPlayer().getUniqueId());
+            } else if (user.isAlmostExpired()) {
+                Bukkit.getLogger().info(user.getTimeUntilExpiration());
+                application.refreshUserToken(e.getPlayer().getUniqueId(), user);
+            } else application.getPledgingAmountAsync(e.getPlayer().getUniqueId(), user);
         }
     }
-
 }

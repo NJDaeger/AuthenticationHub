@@ -39,7 +39,7 @@ webserver-port: 4567
 #
 enable-webserver: true
 
-#
-# Enable the test application. This is a simple application that can be used to test the webserver and authentication hub.
-#
-enable-test-application: false
+enabled-integrations:
+#  - discord
+#  - patreon
+#  - test
