@@ -72,6 +72,8 @@ public class DiscordApplication extends Application<DiscordUser> {
         if (clientId.isEmpty() || clientSecret.isEmpty()) {
             Bukkit.getLogger().warning("Make sure you have the fields 'clientId' and 'clientSecret' set in your discord.yml for the Discord application to start up.");
             canBeLoaded = false;
+        } else {
+            Bukkit.getPluginManager().registerEvents(new DiscordListener(this), plugin);
         }
     }
 

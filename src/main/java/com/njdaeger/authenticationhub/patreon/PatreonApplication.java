@@ -51,8 +51,7 @@ public class PatreonApplication extends Application<PatreonUser> {
         if (!config.contains("messages.refreshingUserToken")) config.set("messages.refreshingUserToken", DARK_AQUA + "Your Patreon account is currently being re-verified. Please wait a few seconds and try again.");
         if (!config.contains("messages.gettingPledgeStatus")) config.set("messages.gettingPledgeStatus", DARK_AQUA + "We are verifying your Patreon pledge status. Please wait a few seconds and try again.");
         if (!config.contains("messages.notAPatron")) config.set("messages.notAPatron", RED + "You are not whitelisted or an Architect patron on this server.");
-//        if (!config.contains("messages.notEnoughPledged")) config.set("messages.notEnoughPledged", RED + "Upgrade your pledging plan a higher tier to access this server.");
-
+//
         try {
             ((YamlConfiguration)config).save(appConfigFile);
         } catch (IOException e) {
@@ -66,8 +65,6 @@ public class PatreonApplication extends Application<PatreonUser> {
         var campaignOwnerUuid = config.getString("campaignOwnerUuid", "");
         this.campaignOwner = !campaignOwnerUuid.isEmpty() ? UUID.fromString(campaignOwnerUuid) : null;
         this.patreonUrl = config.getString("patreonUrl", "");
-
-        Bukkit.getPluginManager().registerEvents(new PatreonListener(this), plugin);
 
         if (clientId.isEmpty() || clientSecret.isEmpty() || patreonUrl.isEmpty() || campaignOwner == null) {
             Bukkit.getLogger().warning("Make sure you have the fields 'clientId', 'clientSecret', 'requiredPledge', 'campaignOwnerUuid', and 'patreonUrl' set in your patreon.yml for the Patreon application to start up.");
@@ -88,6 +85,7 @@ public class PatreonApplication extends Application<PatreonUser> {
                     Bukkit.getLogger().warning("Campaign owner connection is almost expired, refreshing.");
                     refreshUserToken(campaignOwner, owner);
                 }
+                Bukkit.getPluginManager().registerEvents(new PatreonListener(this), plugin);
                 Bukkit.getLogger().info("Patreon application loaded. Campaign Owner: " + campaignOwner + ", Campaign ID: " + campaignId);
                 Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
                     Bukkit.getLogger().info("Checking all Patreon User refresh statuses...");
@@ -149,6 +147,7 @@ public class PatreonApplication extends Application<PatreonUser> {
             database.saveUserConnection(this, userId, owner);
             Bukkit.getLogger().info("Patreon application setup is now complete.");
         }
+        Bukkit.getLogger().info("Cached pledge status for user " + userId + " is " + pledge + " cents. handleConnectionCallback()");
         pledgeStatus.put(userId, pledge);
     }
 
@@ -228,6 +227,7 @@ public class PatreonApplication extends Application<PatreonUser> {
      */
     public int getPledgingAmountSync(UUID userId, PatreonUser user) {
         if (user == null) {
+            Bukkit.getLogger().info("Cached pledge status for user " + userId + " is " + -1 + " cents. getPledgingAmountSync()");
             pledgeStatus.put(userId, -1);
             return -1;
         }
@@ -238,6 +238,7 @@ public class PatreonApplication extends Application<PatreonUser> {
             Bukkit.getLogger().info("Cached pledge for user " + userId + " is " + pledgeStatus.get(userId) + " cents. Updating from Patreon.");
         }
         var amount = resolvePatronPledge(getConnection(campaignOwner), user.getPatreonUserId());
+        Bukkit.getLogger().info("Cached pledge status for user " + userId + " is " + amount + " cents. getPledgingAmountSync()");
         pledgeStatus.put(userId, amount);
         if (user.getPledgingAmount() != amount) {
             user.updateUserPledge(userId, amount);
@@ -254,6 +255,10 @@ public class PatreonApplication extends Application<PatreonUser> {
      */
     public int getPledgingAmountCached(UUID userId) {
         return pledgeStatus.getOrDefault(userId, 0);
+    }
+
+    public boolean isPledgingAmountCached(UUID userId) {
+        return pledgeStatus.containsKey(userId);
     }
 
     public UUID getCampaignOwner() {
@@ -286,6 +291,7 @@ public class PatreonApplication extends Application<PatreonUser> {
             }
             var body = new JsonParser().parse(response.body()).getAsJsonObject();
             user.updateUser(userId, body.get("refresh_token").getAsString(), body.get("access_token").getAsString(), body.get("expires_in").getAsLong() * 1000 + System.currentTimeMillis(), body.get("token_type").getAsString(), user.getScope(), pledge);
+            Bukkit.getLogger().info("Cached pledge status for user " + userId + " is " + pledge + " cents. refreshUserToken()");
             pledgeStatus.put(userId, pledge);
             database.saveUserConnection(this, userId, user);
             plugin.getLogger().info("Refreshed Patreon connection for " + userId);

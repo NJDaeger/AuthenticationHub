@@ -13,6 +13,7 @@ import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static net.md_5.bungee.api.chat.ClickEvent.Action.COPY_TO_CLIPBOARD;
@@ -41,6 +42,11 @@ public class AuthenticationHubCommand extends BukkitCommand {
         UUID userId;
         boolean reset = false;
         boolean player = sender instanceof Player;
+
+        if (webApp == null) {
+            sender.sendMessage(ChatColor.RED + "Please enable the web application to use this command.");
+            return true;
+        }
 
         if (args.length > 2) {
             sender.sendMessage(ChatColor.RED + "Please do '/help authhub' for assistance");
@@ -122,7 +128,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
         }
 
         //Otherwise, we are just generating a new token.
-        session.setAuthToken(RandomStringUtils.random(10, true, true));
+        session.setAuthToken(RandomStringUtils.random(10, true, true).toUpperCase(Locale.ROOT));
         var message = builder.append("New authentication token generated! ").color(ChatColor.DARK_AQUA)
                 .append("\n[Click to Copy]").underlined(true).bold(true)
                 .event(new ClickEvent(COPY_TO_CLIPBOARD, session.getAuthToken()))
@@ -136,6 +142,7 @@ public class AuthenticationHubCommand extends BukkitCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        if (webApp == null) return List.of();
         if (args.length == 1) return List.of("reset");
         if (args[0].equalsIgnoreCase("reset") && sender.hasPermission("authhub.reset-other") && args.length == 2) return webApp.getActiveSessionIds().stream().map(UUID::toString).toList();
         return List.of();
