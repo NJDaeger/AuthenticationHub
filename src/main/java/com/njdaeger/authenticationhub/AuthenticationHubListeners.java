@@ -27,10 +27,11 @@ public class AuthenticationHubListeners implements Listener {
     public void onLogin(PlayerLoginEvent e) {
 
         var loginEvent = new AuthhubLoginEvent(plugin, e.getResult(), e.getPlayer());
+        Bukkit.getPluginManager().callEvent(loginEvent);
 
         //only do this if they are currently not allowed into the server, if they are allowed into the server, they should
         //just run the command in game to get their auth code
-        if (e.getResult() != PlayerLoginEvent.Result.ALLOWED) {
+        if (loginEvent.getResult() != PlayerLoginEvent.Result.ALLOWED) {
             if (webApp == null) {
                 Bukkit.getPluginManager().callEvent(loginEvent);
                 if (loginEvent.getResult() != PlayerLoginEvent.Result.ALLOWED) {
@@ -42,12 +43,7 @@ public class AuthenticationHubListeners implements Listener {
             if (session != null) {
                 //if session has been authorized already, let the application handlers take care of the rest of the verification process
                 //this is only here to do cleanup of expired sessions
-                if (session.isAuthorized()) {
-                    if (session.getTimeRemaining() <= 0) {
-                        webApp.removeSession(e.getPlayer().getUniqueId());
-                        lastLogin.put(e.getPlayer().getUniqueId(), null);
-                    }
-                } else {
+                if (!session.isAuthorized() || session.getTimeRemaining() <= 0) {
                     //if we arent authorized and have a session open, we want to handle the login process here - dont pass off to applications
 
                     //if the last login time is null, or the last login time is more than 5 minutes ago, we want to reset the auth code
@@ -55,7 +51,7 @@ public class AuthenticationHubListeners implements Listener {
                     if (lastLog == null || System.currentTimeMillis() - lastLog >= 300000) {
                         lastLogin.put(e.getPlayer().getUniqueId(), System.currentTimeMillis());
                         session.setAuthToken(RandomStringUtils.random(10, true, true).toUpperCase(Locale.ROOT));
-                        e.setKickMessage("Your current auth code is: " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getAuthToken());
+                        e.disallow(PlayerLoginEvent.Result.KICK_OTHER, "Your current auth code is: " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getAuthToken());
                         return;
                     }
 
@@ -63,17 +59,21 @@ public class AuthenticationHubListeners implements Listener {
                     if (session.getTimeRemaining() <= 0) {
                         webApp.removeSession(e.getPlayer().getUniqueId());
                         lastLogin.put(e.getPlayer().getUniqueId(), null);
-                        e.setKickMessage("Your session has expired.");
+                        e.disallow(PlayerLoginEvent.Result.KICK_OTHER, "Your session has expired.");
 
                         // i dont think this will be hit, but putting it here in case it is
-                    } else e.setKickMessage("Your current session is active. If you wish to restart your session, please wait " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getNiceTimeRemaining() + ChatColor.RESET + ". Or, contact a server administrator to manually reset your session.");
+                    } else e.disallow(PlayerLoginEvent.Result.KICK_OTHER, "Your current session is active. If you wish to restart your session, please wait " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getNiceTimeRemaining() + ChatColor.RESET + ". Or, contact a server administrator to manually reset your session.");
+
                     return;
                 }
+                plugin.getLogger().info("Session is authorized, passing off to applications...");
             }
         }
 
-        Bukkit.getPluginManager().callEvent(loginEvent);
+//        Bukkit.getPluginManager().callEvent(loginEvent);
         if (loginEvent.getResult() != PlayerLoginEvent.Result.ALLOWED) {
+            plugin.getLogger().info(loginEvent.getKickMessage());
+            plugin.getLogger().info(loginEvent.getResult().toString());
             e.disallow(loginEvent.getResult(), loginEvent.getKickMessage());
         } else e.allow();
     }

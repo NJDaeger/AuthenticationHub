@@ -342,7 +342,6 @@ public class WebApplication {
         });
     }
 
-
     /**
      * Gets an auth session from a given UUID.
      * @param userId The UUID associated with the auth session to get.

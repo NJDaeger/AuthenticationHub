@@ -243,6 +243,7 @@ public class DiscordApplication extends Application<DiscordUser> {
                     return;
                 }
                 var body = new JsonParser().parse(response.body()).getAsJsonObject();
+                Bukkit.getLogger().info(body.toString());
                 var accessToken = body.get("access_token").getAsString();
                 var tokenType = body.get("token_type").getAsString();
                 var expiresInHowManySeconds = body.get("expires_in").getAsInt();
@@ -266,6 +267,7 @@ public class DiscordApplication extends Application<DiscordUser> {
                 currentlyRefreshing.remove(userId);
                 onComplete.accept(userId, true);
             } catch (Exception e) {
+                removeConnection(userId);//remove the connection from the database if we cant refresh it
                 e.printStackTrace();
                 currentlyRefreshing.remove(userId);
                 plugin.getLogger().severe("An error occurred when refreshing Discord connection for " + userId);
