@@ -67,6 +67,7 @@ public class WebApplication {
         getCallback();
         getDisconnect();
         getApplications();
+        deleteSession();
     }
 
     /**
@@ -341,6 +342,57 @@ public class WebApplication {
             }
         });
     }
+
+    /**
+     * /session
+     *
+     * Removes an auth session for a given UUID
+     *
+     * params:
+     *      uuid    - The UUID of the user whose session should be removed (query parameter)
+     */
+    public void deleteSession() {
+        delete("/reset", "application/json", (req, res) -> {
+            try {
+                String uuidParam = req.queryParamsSafe("uuid");
+
+                if (uuidParam == null)
+                    throw new RequestException("UUID Error: No UUID provided.");
+
+                UUID uuid;
+
+                //Ensure the UUID provided is a valid UUID
+                try {
+                    uuid = UUID.fromString(uuidParam);
+                } catch (IllegalArgumentException e) {
+                    throw new RequestException("UUID Error: The UUID provided is not properly formatted.");
+                }
+
+                //Attempt to remove the session
+                boolean removed = removeSession(uuid);
+
+                res.header("content-type", "application/json");
+                if (removed) {
+                    res.status(OK);
+                    return createObject("message", "Session removed successfully.", "status", OK);
+                } else {
+                    res.status(NOT_FOUND);
+                    return createObject("message", "Session Error: No active session found for the provided UUID.", "status", NOT_FOUND);
+                }
+            } catch (RequestException e) {
+                res.header("content-type", "application/json");
+                res.status(e.getStatus());
+                return createObject("message", e.getMessage(), "status", e.getStatus());
+            } catch (Exception e) {
+                res.header("content-type", "application/json");
+                res.status(SERVER_ERROR);
+                res.redirect("/");
+                e.printStackTrace();
+                return createObject("message", "Internal Server Error. Please report this to a system administrator.", "status", SERVER_ERROR);
+            }
+        });
+    }
+
 
     /**
      * Gets an auth session from a given UUID.

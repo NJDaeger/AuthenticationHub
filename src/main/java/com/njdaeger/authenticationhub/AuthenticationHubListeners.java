@@ -50,7 +50,7 @@ public class AuthenticationHubListeners implements Listener {
                     var lastLog = lastLogin.get(e.getPlayer().getUniqueId());
                     if (lastLog == null || System.currentTimeMillis() - lastLog >= 300000) {
                         lastLogin.put(e.getPlayer().getUniqueId(), System.currentTimeMillis());
-                        session.setAuthToken(RandomStringUtils.random(10, true, true).toUpperCase(Locale.ROOT));
+                        session.setAuthToken(RandomStringUtils.random(5, true, true).toUpperCase(Locale.ROOT));
                         e.disallow(PlayerLoginEvent.Result.KICK_OTHER, "Your current auth code is: " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getAuthToken());
                         return;
                     }

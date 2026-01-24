@@ -27,124 +27,126 @@ public class AuthenticationHubCommand extends BukkitCommand {
     protected AuthenticationHubCommand(WebApplication webApp) {
         super("authhub");
         this.description = "Get the single-use authorization token for AuthenticationHub's Minecraft account authenticator.";
-        this.usageMessage = "/authhub [reset] [uuid]";
+        this.usageMessage = "/authhub | /authhub reset [uuid] | /authhub view [uuid]";
         this.webApp = webApp;
     }
 
-    //
-    // /authhub                                                                 anyone
-    // /authhub reset           - resets sender's auth session, if existing.    anyone
-    // /authhub reset [uuid]    - resets a given user                           authhub.reset-other
-    //
+
+    /*
+
+    /authhub -> view the sender's auth token, requires no permission.
+    /authhub reset -> resets the sender's auth session, if existing.
+    /authhub reset [uuid] -> resets a given user's auth session, requires permission authhub.reset-other
+    /authhub view [uuid] -> view a given user's auth token, requires permission authhub.view-other
+
+     */
+
     @Override
     public boolean execute(CommandSender sender, String commandLabel, String[] args) {
-        //todo update the command to have better chat formatting and maybe a help command.
-        UUID userId;
-        boolean reset = false;
-        boolean player = sender instanceof Player;
-
         if (webApp == null) {
             sender.sendMessage(ChatColor.RED + "Please enable the web application to use this command.");
             return true;
         }
 
-        if (args.length > 2) {
-            sender.sendMessage(ChatColor.RED + "Please do '/help authhub' for assistance");
+        UUID userId;
+        boolean isReset;
+        AuthSession session;
+        if (args.length == 0) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ChatColor.RED + "Command usage: /authhub view [uuid]");
+                return true;
+            }
+
+            isReset = false;
+        }
+        else if (args[0].equalsIgnoreCase("view")) isReset = false;
+        else if (args[0].equalsIgnoreCase("reset")) isReset = true;
+        else {
+            sender.sendMessage(ChatColor.RED + "Unknown subcommand '" + args[0] + "'");
             return true;
         }
 
-        //The only subcommand we have available to us is the "reset" subcommand. If the executed command has any
-        //arguments, the only one we will be looking for is "reset", if it is anything else, throw an error.
-        if (args.length > 0) {
-//            if (args[0].equalsIgnoreCase("refresh")) {
-//                var app = AuthenticationHub.getInstance().getApplicationRegistry().getApplication(PatreonApplication.class);
-//                if (!(sender instanceof Player) || !app.getCampaignOwner().equals(((Player) sender).getUniqueId())) {
-//                    sender.sendMessage(ChatColor.RED + "You must be the campaign owner to do that!");
-//                    return true;
-//                }
-//                var user = app.getConnection(((Player) sender).getUniqueId());
-//                app.refreshUserToken(((Player) sender).getUniqueId(), user, (u, success) -> {
-//                    if (success) sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "Refreshed your user token!");
-//                    else sender.sendMessage(ChatColor.RED + "Failed to refresh your user token. Please see the console for errors.");
-//                });
-//                sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "Refreshing your user token...");
-//                return true;
-//            }
-            /*else */if (args[0].equalsIgnoreCase("reset")) reset = true;
-            else {
-                sender.sendMessage(ChatColor.RED + "Unknown subcommand '" + args[0] + "'");
+        if (args.length == 2) {
+            if (!sender.hasPermission("authhub." + (isReset ? "reset" : "view") + "-other")) {
+                sender.sendMessage(ChatColor.RED + "You do not have permission to " + (isReset ? "reset" : "view") + " other user sessions.");
                 return true;
             }
-        }
-
-        //If we give 0 or 1 command argument, we have to be a player. consoles MUST specify a UUID
-        if (args.length <= 1) {
-            if (!player) {
-                sender.sendMessage(ChatColor.RED + "You must specify a UUID to reset. /authhub reset [uuid]");
-                return true;
-            }
-            userId = ((Player) sender).getUniqueId();
-        } else {//If we have more than one argument, we are definitely trying to reset another user's session.
-            //In this case, if we are a player, we need to check if we have permission to reset another user.
-            if (player && !sender.hasPermission("authhub.reset-other")) {
-                sender.sendMessage(ChatColor.RED + "You do not have permission to reset other user sessions.");
-                return true;
-            }
-            //Otherwise, if we are anything but a player, we probably have permission, so we allow it
             try {
                 userId = UUID.fromString(args[1]);
             } catch (IllegalArgumentException e) {
                 sender.sendMessage(ChatColor.RED + "The UUID provided was not formatted correctly.");
                 return true;
             }
+        } else {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ChatColor.RED + "You must specify a UUID to " + (isReset ? "reset" : "view") + ". /authhub " + (isReset ? "reset" : "view") + " [uuid]");
+                return true;
+            }
+            userId = ((Player) sender).getUniqueId();
         }
 
-        AuthSession session = webApp.getAuthSession(userId);
-        var builder = new ComponentBuilder().append("[AuthenticationHub] ").color(ChatColor.BLUE);
+        session = webApp.getAuthSession(userId);
 
-        //If the given session is null, just fail gracefully
         if (session == null) {
             sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "No web session has been started for that user.");
             return true;
         }
 
-        //If we are resetting the session, remove it from the webapp session map
-        if (reset) {
-            var msg = player && ((Player) sender).getUniqueId().equals(userId) ? "Your session was reset." : "User session was reset.";
-            sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + msg);
+        if (isReset) {
             webApp.removeSession(userId);
+            var msg = userId.equals(((sender instanceof Player) ? ((Player) sender).getUniqueId() : null)) ? "Your session was reset." : "User session was reset.";
+            sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + msg);
             return true;
         }
 
-        //If the session is authorized, ask the user if they want to reset their session instead.
+        //isView
         if (session.isAuthorized()) {
-            var message = builder.append("Your session is already authorized. Would you like to reset your session? ").color(ChatColor.DARK_AQUA)
+            var builder = new ComponentBuilder().append("[AuthenticationHub] ").color(ChatColor.BLUE);
+            var message = builder.append("The session is already authorized. Would you like to reset the session? ").color(ChatColor.DARK_AQUA)
                     .append("\n[Reset]").color(ChatColor.DARK_AQUA).underlined(true).bold(true)
-                    .event(new ClickEvent(RUN_COMMAND, "/authhub reset"))
+                    .event(new ClickEvent(RUN_COMMAND, "/authhub reset " + userId))
                     .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Reset session").color(ChatColor.GRAY).create())))
                     .create();
-            ((Player)sender).spigot().sendMessage(message);
+            if (sender instanceof Player) {
+                ((Player)sender).spigot().sendMessage(message);
+            } else {
+                sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "The session is already authorized. Please reset the session if you wish to generate a new token.");
+            }
             return true;
         }
 
-        //Otherwise, we are just generating a new token.
-        session.setAuthToken(RandomStringUtils.random(10, true, true).toUpperCase(Locale.ROOT));
-        var message = builder.append("New authentication token generated! ").color(ChatColor.DARK_AQUA)
+        var authToken = session.getAuthToken() == null
+                ? RandomStringUtils.random(5, true, true).toUpperCase(Locale.ROOT)
+                : session.getAuthToken();
+        if (session.getAuthToken() == null) {
+            session.setAuthToken(authToken);
+        }
+        var builder = new ComponentBuilder().append("[AuthenticationHub] ").color(ChatColor.BLUE);
+        var message = builder.append("Authentication token: ").color(ChatColor.DARK_AQUA)
                 .append("\n[Click to Copy]").underlined(true).bold(true)
                 .event(new ClickEvent(COPY_TO_CLIPBOARD, session.getAuthToken()))
-                .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Copy your auth token").color(ChatColor.GRAY).create())))
+                .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append("Copy the auth token").color(ChatColor.GRAY).create())))
                 .append(" or ").retain(ComponentBuilder.FormatRetention.NONE).color(ChatColor.DARK_AQUA)
-                .append("[Hover to View]").underlined(true).bold(true)
+                .append("\n[Hover to View]").underlined(true).bold(true)
                 .event(new HoverEvent(SHOW_TEXT, new Text(new ComponentBuilder().append(session.getAuthToken()).color(ChatColor.GRAY).create()))).create();
-        ((Player) sender).spigot().sendMessage(message);
+
+        if (sender instanceof Player) {
+            ((Player) sender).spigot().sendMessage(message);
+        } else {
+            sender.sendMessage(ChatColor.BLUE + "[AuthenticationHub] " + ChatColor.DARK_AQUA + "Authentication token: " + ChatColor.UNDERLINE + ChatColor.DARK_AQUA + session.getAuthToken());
+        }
+
         return true;
     }
 
     @Override
     public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
         if (webApp == null) return List.of();
-        if (args.length == 1) return List.of("reset");
-        if (args[0].equalsIgnoreCase("reset") && sender.hasPermission("authhub.reset-other") && args.length == 2) return webApp.getActiveSessionIds().stream().map(UUID::toString).toList();
+        if (args.length == 1) return List.of("reset", "view");
+        if ((args[0].equalsIgnoreCase("reset") && sender.hasPermission("authhub.reset-other")) ||
+                (args[0].equalsIgnoreCase("view") && sender.hasPermission("authhub.view-other"))) {
+            if (args.length == 2) return webApp.getActiveSessionIds().stream().map(UUID::toString).toList();
+        }
         return List.of();
     }
 }

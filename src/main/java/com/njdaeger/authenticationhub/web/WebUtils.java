@@ -33,6 +33,7 @@ public final class WebUtils {
      * SERVER ERROR response code
      */
     public static final int SERVER_ERROR = 500;
+    public static final int NOT_FOUND = 404;
 
     /**
      * Create a Json object with every odd value in the provided array being a key and every even value in the array being a value
